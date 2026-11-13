@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>좀비 생존 알고리즘 · 탐색과 정렬</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F0E6; --card:#FFFDF8; --ink:#25222E; --muted:#6A6475; --line:#E3DACB;
+  --primary:#2E7D5B; --primary-d:#22604A; --primary-l:#E3F1EA;
+  --amber:#E9982F; --amber-l:#FDF0DC; --coral:#D85C48; --coral-l:#FBE6E1;
+  --blue:#3A69B0; --blue-l:#E4ECF8; --zombie:#7FB74A; --dim:#D9D2C4;
+  --radius:16px; --shadow:0 2px 0 rgba(37,34,46,.06), 0 8px 24px rgba(37,34,46,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.display{font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400;letter-spacing:-.01em;line-height:1.3;margin:0}
+h1{font-size:2rem} h2{font-size:1.55rem} h3{font-size:1.2rem}
+p{margin:.4em 0}
+button{font:inherit;color:inherit}
+input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.small{font-size:.88rem}
+
+/* ---------- top bar ---------- */
+.topbar{position:sticky;top:0;z-index:20;background:rgba(245,240,230,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1080px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:12px}
+.logo{display:flex;align-items:center;gap:8px;font-family:'Jua',sans-serif;font-size:1.2rem;background:none;border:0;cursor:pointer;padding:4px 6px;border-radius:10px}
+.logo:hover{background:#ece5d6}
+.logo .em{font-size:1.4rem}
+.who{margin-left:auto;font-size:.9rem;background:var(--card);border:1px solid var(--line);padding:4px 12px;border-radius:999px}
+.progress{max-width:1080px;margin:0 auto;padding:0 18px 10px}
+.progress-label{display:flex;justify-content:space-between;font-size:.9rem;color:var(--muted);margin-bottom:6px;gap:8px;flex-wrap:wrap}
+.progress-label b{color:var(--ink)}
+.segs{display:flex;gap:4px}
+.seg{flex:1;height:8px;border-radius:4px;background:var(--dim)}
+.seg.done{background:var(--primary)}
+.seg.now{background:var(--amber)}
+
+/* ---------- layout ---------- */
+main{max-width:1080px;margin:0 auto;padding:22px 18px 120px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+.stack>*+*{margin-top:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:820px){.grid3{grid-template-columns:1fr}}
+@media (max-width:720px){.grid2{grid-template-columns:1fr} h1{font-size:1.6rem} h2{font-size:1.3rem} main{padding:16px 12px 120px} .card{padding:16px}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:10px 18px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);cursor:pointer;font-weight:600;transition:transform .08s, background .15s}
+.btn:hover{background:#f3ede1}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary-d)}
+.btn.amber{background:var(--amber);border-color:var(--amber);color:#fff}
+.btn.small{min-height:36px;padding:6px 12px;font-size:.9rem}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.btn.ghost{background:transparent}
+
+/* bottom nav */
+.navbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(255,253,248,.97);border-top:1px solid var(--line);backdrop-filter:blur(6px)}
+.navbar-in{max-width:1080px;margin:0 auto;padding:10px 18px;display:flex;gap:10px;align-items:center}
+.navbar .spacer{flex:1}
+.navbar .hint{font-size:.85rem;color:var(--muted)}
+@media (max-width:560px){.navbar .hint{display:none}}
+
+/* ---------- start / hub ---------- */
+.hero{text-align:center;padding:12px 0 6px}
+.hero .scene{font-size:3rem;letter-spacing:.2em;margin-bottom:6px}
+.hero p{color:var(--muted)}
+.form{max-width:520px;margin:18px auto 0}
+.fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.field label{display:block;font-weight:600;font-size:.92rem;margin-bottom:4px}
+.field input,.field select{width:100%;min-height:48px;border:1.5px solid var(--line);border-radius:12px;padding:8px 12px;background:#fff}
+.field input:focus,.field select:focus,textarea:focus{outline:3px solid #9ccfb6;border-color:var(--primary)}
+.sec-card{display:flex;flex-direction:column;gap:10px;text-align:left;cursor:pointer;position:relative;border:2px solid var(--line)}
+.sec-card:hover{border-color:var(--primary)}
+.sec-card .ico{font-size:2.4rem}
+.sec-card .code{font-size:.82rem;color:var(--muted)}
+.sec-card.locked{cursor:not-allowed;border-style:dashed;background:#faf7f0;color:var(--muted);box-shadow:none}
+.sec-card.locked:hover{border-color:var(--line)}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:.82rem;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--primary-l);color:var(--primary-d);width:max-content}
+.badge.amber{background:var(--amber-l);color:#9a5a0a}
+.badge.gray{background:#eee8dc;color:var(--muted)}
+
+/* ---------- story dialog ---------- */
+.story{display:flex;gap:14px;align-items:flex-start;background:#26303A;color:#F4F1EA;border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+.story .avatar{flex:none;width:56px;height:56px;border-radius:16px;background:#3C4C5B;display:grid;place-items:center;font-size:2rem}
+.story .name{font-family:'Jua',sans-serif;color:#9fe0bf;font-size:1rem}
+.story .lines p{margin:.2em 0;font-size:1.05rem}
+.story .lines p.new{animation:fadein .35s ease}
+.story .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.story .btn{background:#3C4C5B;border-color:#566a7c;color:#fff;min-height:40px}
+.story .btn.primary{background:var(--primary);border-color:var(--primary)}
+.story.mini{padding:12px 16px}
+.story.mini .avatar{width:42px;height:42px;font-size:1.5rem;border-radius:12px}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- goals ---------- */
+.goals{display:grid;gap:12px}
+.goal{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.goal .n{flex:none;width:34px;height:34px;border-radius:10px;background:var(--primary);color:#fff;display:grid;place-items:center;font-family:'Jua',sans-serif;font-size:1.1rem}
+.goal.attitude .n{background:var(--amber)}
+
+/* ---------- concept + reason ---------- */
+.concept{border:2px solid var(--primary);background:var(--primary-l);border-radius:var(--radius);padding:18px 20px}
+.concept .tag{font-family:'Jua',sans-serif;color:var(--primary-d);font-size:1.05rem;margin-bottom:4px}
+.concept p{font-size:1.06rem}
+.reason{background:var(--card);border:1px dashed #bdb3a1;border-radius:var(--radius);padding:18px 20px}
+.reason label{font-weight:700;display:block;margin-bottom:8px}
+textarea{width:100%;min-height:76px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;resize:vertical;background:#fff}
+.example{margin-top:12px;background:var(--blue-l);border-radius:12px;padding:12px 14px}
+.example b{color:var(--blue)}
+
+/* ---------- feedback ---------- */
+.msg{border-radius:12px;padding:12px 16px;font-weight:600}
+.msg.ok{background:var(--primary-l);color:var(--primary-d)}
+.msg.warn{background:var(--amber-l);color:#8a4f06}
+.msg.bad{background:var(--coral-l);color:#9b3424}
+.msg.info{background:var(--blue-l);color:#264d86}
+
+/* ---------- zombie track ---------- */
+.ztrack{background:#2C3440;border-radius:14px;padding:12px 14px;color:#f1eee6}
+.ztrack .zlabel{display:flex;justify-content:space-between;gap:8px;font-size:.92rem;margin-bottom:8px;flex-wrap:wrap}
+.ztrack .zlabel b{color:#ffd28a}
+.zlane{position:relative;height:44px;display:flex;gap:3px;align-items:center}
+.zcell{flex:1;height:10px;border-radius:3px;background:#46525f}
+.zcell.passed{background:#6d8a4a}
+.zwho{position:absolute;top:0;font-size:1.9rem;line-height:44px;transition:left .35s ease;transform:translateX(-50%)}
+.zhome{flex:none;font-size:1.7rem;margin-left:6px}
+.ztrack.arrived{animation:shake .4s}
+.ztrack.arrived .zlabel b{color:#ff9b8a}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ---------- radio / guess ---------- */
+.guess{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.guess input{width:130px;min-height:52px;font-size:1.3rem;text-align:center;border:2px solid var(--line);border-radius:12px}
+.hist{display:flex;flex-wrap:wrap;gap:6px}
+.hist .h{padding:4px 10px;border-radius:999px;background:#eee7da;font-size:.92rem;font-weight:600}
+.hist .h.up{background:var(--blue-l);color:#264d86}
+.hist .h.down{background:var(--amber-l);color:#8a4f06}
+.hist .h.hit{background:var(--primary);color:#fff}
+.radio{font-size:3rem;text-align:center}
+
+/* ---------- boxes (search) ---------- */
+.target{display:inline-flex;align-items:center;gap:8px;background:var(--coral-l);color:#8c2e1f;border-radius:12px;padding:8px 14px;font-weight:700}
+.boxes{display:grid;grid-template-columns:repeat(10,1fr);gap:8px}
+@media (max-width:720px){.boxes{grid-template-columns:repeat(5,1fr)}}
+.box{aspect-ratio:1/1;border-radius:12px;border:2px solid #d2a35d;background:linear-gradient(#f6c983,#e9a54b);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:1.15rem;position:relative;padding:0;color:#5b3a10}
+.box .lid{font-size:1.5rem}
+.box:hover:not(.open){transform:translateY(-2px)}
+.box.open{background:#fff;border-color:var(--line);cursor:default;color:var(--ink)}
+.box.hit{background:var(--primary);border-color:var(--primary);color:#fff}
+.box.guide{outline:4px solid var(--amber);outline-offset:2px}
+
+.cells{display:grid;grid-template-columns:repeat(31,1fr);gap:4px}
+@media (max-width:900px){.cells{grid-template-columns:repeat(16,1fr)}}
+.cell{border-radius:8px;border:2px solid #9bb7d8;background:#dce8f6;min-height:62px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 0;position:relative}
+.cell .idx{font-size:.7rem;color:#516a88}
+.cell .val{font-weight:800;font-size:1rem}
+.cell.out{background:#ece8df;border-color:#ddd6c8;opacity:.45;cursor:not-allowed}
+.cell.open{background:#fff;border-color:#7a93b3}
+.cell.hit{background:var(--primary);border-color:var(--primary);color:#fff}
+.cell.hit .idx{color:#d8f0e4}
+.cell.mid{outline:3px solid var(--amber);outline-offset:1px;animation:pulse 1.2s infinite}
+.cell.mid::after{content:'가운데';position:absolute;bottom:-20px;font-size:.68rem;color:#9a5a0a;font-weight:700;white-space:nowrap}
+@keyframes pulse{50%{outline-color:#f7c77d}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.86rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:16px;height:16px;border-radius:4px;border:1.5px solid #9bb7d8}
+
+/* ---------- simulation ---------- */
+.sim-ctrl{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.sim-ctrl .field{min-width:160px}
+.sim-ctrl input[type=range]{width:100%;accent-color:var(--primary)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.panel h3{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.counter{font-family:'Jua',sans-serif;font-size:1.05rem;background:#25222e;color:#fff;border-radius:10px;padding:2px 12px}
+.panel canvas{width:100%;display:block;margin-top:10px;border-radius:8px}
+.panel .say{min-height:3.2em;font-size:.92rem;color:var(--muted);margin-top:8px}
+.panel.win{border:2px solid var(--primary)}
+.table{width:100%;border-collapse:collapse;font-size:.95rem;background:#fff;border-radius:12px;overflow:hidden}
+.table th,.table td{border:1px solid var(--line);padding:8px 10px;text-align:center}
+.table th{background:#efe8da}
+.table tr.hl td{background:var(--amber-l);font-weight:700}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:560px){.opts{grid-template-columns:1fr}}
+.opt{text-align:left;min-height:52px;padding:10px 14px;border-radius:12px;border:2px solid var(--line);background:#fff;cursor:pointer;font-weight:600}
+.opt:hover:not([disabled]){border-color:var(--primary)}
+.opt.sel{border-color:var(--blue);background:var(--blue-l)}
+.opt.right{border-color:var(--primary);background:var(--primary-l)}
+.opt.wrong{border-color:var(--coral);background:var(--coral-l)}
+.opt[disabled]{cursor:default}
+
+/* ---------- fill blanks ---------- */
+.fill td{text-align:left;vertical-align:top}
+.fill select{min-height:40px;border-radius:10px;border:2px solid #b8c9e0;background:#f4f8fd;padding:4px 8px;max-width:100%}
+.fill select.ok{border-color:var(--primary);background:var(--primary-l)}
+.fill select.no{border-color:var(--coral);background:var(--coral-l)}
+.mark{font-weight:700;font-size:.85rem;margin-left:4px}
+
+/* ---------- quiz ---------- */
+.q{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+.q .qn{font-family:'Jua',sans-serif;color:var(--primary-d)}
+.q .prompt{font-weight:700;margin:4px 0 12px;font-size:1.05rem}
+.q .expl{margin-top:12px;border-radius:12px;padding:12px 14px}
+.q .expl.ok{background:var(--primary-l)}
+.q .expl.bad{background:var(--coral-l)}
+.q .qtag{font-size:.78rem;color:var(--muted);float:right}
+.check{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.check span{padding:4px 10px;border-radius:999px;font-size:.88rem;font-weight:700}
+.check .y{background:var(--primary-l);color:var(--primary-d)}
+.check .n{background:#eee7da;color:var(--muted)}
+
+/* ---------- sorting tiles ---------- */
+.tiles{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:flex-end;padding:20px 4px 8px;min-height:120px}
+.tile{width:62px;height:70px;border-radius:12px;border:2.5px solid #d2a35d;background:linear-gradient(#f6c983,#e9a54b);display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:1.35rem;cursor:pointer;position:relative;transition:transform .2s, background .2s;color:#5b3a10;padding:0}
+.tile small{font-size:.66rem;font-weight:700;opacity:.8}
+.tile:hover:not([disabled]){transform:translateY(-3px)}
+.tile.sel{outline:4px solid var(--blue);outline-offset:2px;transform:translateY(-6px)}
+.tile.fixed{background:var(--primary-l);border-color:var(--primary);color:var(--primary-d)}
+.tile.pair{outline:4px solid var(--amber);outline-offset:2px}
+.tile.key{transform:translateY(-22px);outline:4px solid var(--blue);outline-offset:2px}
+.tile.hintme{animation:wiggle .5s 2}
+.tile[disabled]{cursor:default}
+.tile.ghost{background:transparent;border-style:dashed;color:transparent}
+@keyframes wiggle{25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+@media (max-width:560px){.tile{width:38px;height:54px;font-size:1.05rem;border-radius:9px}.tiles{gap:4px;padding:18px 0 6px}}
+.slot{width:26px;height:70px;border-radius:8px;border:2px dashed #8aa7cc;background:#eef4fb;cursor:pointer;display:grid;place-items:center;color:#3a69b0;font-weight:800;padding:0}
+.slot:hover{background:#d8e6f7}
+@media (max-width:560px){.slot{width:14px;height:54px;border-radius:6px}}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tabs .t{padding:6px 14px;border-radius:999px;background:#eee7da;font-weight:700;font-size:.92rem}
+.tabs .t.now{background:var(--amber);color:#fff}
+.tabs .t.done{background:var(--primary);color:#fff}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-weight:700}
+.stat b{font-family:'Jua',sans-serif;font-size:1.2rem;color:var(--primary-d);margin-left:6px}
+.rule{background:#fff;border-left:5px solid var(--amber);border-radius:10px;padding:10px 14px}
+
+/* ---------- report ---------- */
+.report .big{font-family:'Jua',sans-serif;font-size:2.6rem;color:var(--primary-d)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 18px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:700}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:4px 12px;border-radius:999px;background:var(--coral-l);color:#9b3424;font-weight:700;font-size:.9rem}
+.chip.ok{background:var(--primary-l);color:var(--primary-d)}
+.codebox{width:100%;font-family:ui-monospace,Menlo,monospace;font-size:.75rem;min-height:70px}
+.cert{background:#fffaf0;border:6px double #c9a35a;border-radius:18px;padding:28px;text-align:center}
+.cert h2{font-size:2rem;color:#7a5512}
+.cert .seal{font-size:3rem}
+.path{display:inline-flex;align-items:center;gap:6px;font-weight:700;padding:6px 14px;border-radius:999px}
+.path.p1{background:var(--coral-l);color:#9b3424}
+.path.p2{background:var(--amber-l);color:#8a4f06}
+.path.p3{background:var(--blue-l);color:#264d86}
+.halve{display:flex;flex-direction:column;gap:4px;font-family:ui-monospace,Menlo,monospace;font-size:.92rem;max-height:260px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
+.halve div{display:flex;gap:10px;align-items:center}
+.halve .bar{height:10px;background:var(--primary);border-radius:4px;min-width:2px}
+.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#25222e;color:#fff;padding:10px 18px;border-radius:12px;z-index:50;font-weight:600;animation:fadein .2s}
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* =========================================================
+   좀비 생존 알고리즘 코스웨어
+   ---------------------------------------------------------
+   [교사 설정] 구글 시트 연동
+   - 이 파일을 앱스 스크립트 웹앱(index.html)으로 함께 배포하면
+     아무것도 바꾸지 않아도 결과가 시트에 저장됩니다.
+   - 다른 곳(예: GitHub Pages)에 올릴 때만 아래 SCRIPT_URL에
+     앱스 스크립트 웹앱 주소(…/exec)를 붙여 넣으세요.
+   ========================================================= */
+const CONFIG = {
+  SCRIPT_URL: '',          // 예: 'https://script.google.com/macros/s/XXXX/exec'
+  ZOMBIE: '🧟',            // 무서워하는 학생이 많으면 '🌊'(재난) 등으로 바꿔도 됩니다
+};
+
+/* ---------------- 유틸 ---------------- */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function sampleDistinct(k, lo, hi) { const s = new Set(); while (s.size < k) s.add(rand(lo, hi)); return [...s]; }
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const isSorted = a => a.every((v, i) => i === 0 || a[i - 1] <= v);
+function toast(t, ms = 1800) { const el = h(`<div class="toast" role="status">${esc(t)}</div>`); document.body.appendChild(el); setTimeout(() => el.remove(), ms); }
+
+/* ---------------- 상태 ---------------- */
+const STORE_KEY = 'zsa-v1';
+let S = (() => { try { return JSON.parse(sessionStorage.getItem(STORE_KEY)) || null; } catch (e) { return null; } })() || { student: null, sec: {}, view: 'start' };
+function save() { try { sessionStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { } }
+function secState(id) {
+  if (!S.sec[id]) S.sec[id] = { step: 0, done: {}, logs: {}, reasons: {}, quiz: { answers: {}, essay: null }, startedAt: Date.now(), complete: false, sent: false };
+  return S.sec[id];
+}
+
+/* ---------------- 섹션 등록 ---------------- */
+const SECTIONS = {}; // search, sort 가 아래 파일에서 등록됨
+
+/* ---------------- 레이아웃 ---------------- */
+const app = () => $('#app');
+function renderTop(progress) {
+  const st = S.student;
+  const who = st ? `${st.grade}학년 ${st.cls}반 ${st.num}번` : '';
+  let prog = '';
+  if (progress) {
+    const { sec, step } = progress; const def = SECTIONS[sec]; const ss = secState(sec);
+    const segs = def.steps.map((_, i) => `<div class="seg ${i < step || ss.done[i] && i !== step ? 'done' : ''} ${i === step ? 'now' : ''}"></div>`).join('');
+    prog = `<div class="progress"><div class="progress-label"><span><b>${def.icon} ${def.title}</b> · ${esc(def.steps[step].name)}</span><span><b>${step}/${def.steps.length - 1}</b> 단계</span></div><div class="segs" aria-hidden="true">${segs}</div></div>`;
+  }
+  return `<header class="topbar"><div class="topbar-in"><button class="logo" data-act="hub" aria-label="허브로 가기"><span class="em">🏚️</span>좀비 생존 알고리즘</button>${who ? `<span class="who">🪪 ${who}</span>` : ''}</div>${prog}</header>`;
+}
+function bindTop(root) { const b = $('[data-act=hub]', root); if (b) b.onclick = () => { if (S.student) goHub(); }; }
+
+/* ---------------- 시작 화면 ---------------- */
+function goStart() {
+  S.view = 'start'; save();
+  app().innerHTML = renderTop() + `
+  <main><div class="card stack">
+    <div class="hero">
+      <div class="scene" aria-hidden="true">🏚️${CONFIG.ZOMBIE}📦🚁</div>
+      <h1>좀비 생존 알고리즘</h1>
+      <p>좀비가 퍼진 도시, 대피소의 신입 생존 대원이 되어<br>보급품 상자를 <b>찾고(탐색)</b> 창고를 <b>정리(정렬)</b>하세요.</p>
+    </div>
+    <form class="form stack" id="startForm" autocomplete="off">
+      <div class="fields">
+        <div class="field"><label for="fGrade">학년</label><select id="fGrade"><option value="">선택</option><option>1</option><option>2</option><option>3</option></select></div>
+        <div class="field"><label for="fCls">반</label><input id="fCls" type="number" min="1" max="30" inputmode="numeric" placeholder="예: 3"></div>
+        <div class="field"><label for="fNum">번호</label><input id="fNum" type="number" min="1" max="60" inputmode="numeric" placeholder="예: 15"></div>
+      </div>
+      <div class="field"><label for="fCode">수업 코드 <span class="muted small">(선생님이 알려 준 코드)</span></label><input id="fCode" type="text" placeholder="예: ZOMBIE3"></div>
+      <p class="small muted">🔒 이름은 입력하지 않아요. 학습 결과는 선생님만 볼 수 있어요.</p>
+      <button class="btn primary" id="startBtn" type="submit" disabled style="width:100%">생존 대원으로 등록하기 ▶</button>
+    </form>
+  </div></main>`;
+  bindTop(app());
+  const f = $('#startForm'); const btn = $('#startBtn');
+  const ids = ['fGrade', 'fCls', 'fNum', 'fCode'];
+  if (S.student) { $('#fGrade').value = S.student.grade; $('#fCls').value = S.student.cls; $('#fNum').value = S.student.num; $('#fCode').value = S.student.code; }
+  const check = () => { btn.disabled = !ids.every(id => String($('#' + id).value).trim() !== ''); };
+  ids.forEach(id => { $('#' + id).addEventListener('input', check); $('#' + id).addEventListener('change', check); });
+  check();
+  f.onsubmit = e => {
+    e.preventDefault(); if (btn.disabled) return;
+    const st = { grade: $('#fGrade').value, cls: String(+$('#fCls').value), num: String(+$('#fNum').value), code: $('#fCode').value.trim() };
+    if (S.student && (S.student.grade !== st.grade || S.student.cls !== st.cls || S.student.num !== st.num)) S.sec = {}; // 학생이 바뀌면 기록 초기화
+    S.student = st; save(); goHub();
+  };
+}
+
+/* ---------------- 허브 ---------------- */
+function goHub() {
+  S.view = 'hub'; save();
+  const card = (id) => {
+    const d = SECTIONS[id]; const ss = S.sec[id];
+    let badge = '<span class="badge gray">시작 전</span>';
+    if (ss && ss.complete) badge = `<span class="badge">🏅 완료 · 형성평가 ${ss.score}/5</span>`;
+    else if (ss) badge = `<span class="badge amber">▶ 진행 중 · ${ss.step}/${d.steps.length - 1}단계</span>`;
+    return `<button class="card sec-card" data-sec="${id}"><span class="ico" aria-hidden="true">${d.icon}</span><span class="code">${d.std}</span><h2>${d.label}</h2><span>${d.desc}</span>${badge}</button>`;
+  };
+  const allDone = ['search', 'sort'].every(id => S.sec[id] && S.sec[id].complete);
+  app().innerHTML = renderTop() + `
+  <main class="stack">
+    <div class="story mini"><div class="avatar" aria-hidden="true">🤖</div><div><div class="name">세이프 (대피소 관리 AI)</div><div class="lines"><p>${allDone ? '모든 임무를 완수했어요! 생존 인증서를 확인해 보세요. 🚁' : '생존 대원님, 임무를 골라 주세요. 탐색 → 정렬 순서를 추천해요.'}</p></div></div></div>
+    <div class="grid3">
+      ${card('search')}
+      ${card('sort')}
+      <div class="card sec-card locked" aria-disabled="true"><span class="ico" aria-hidden="true">🔒</span><span class="code">확장 섹션</span><h2>준비 중</h2><span>다른 알고리즘 임무가 곧 추가될 예정이에요.</span><span class="badge gray">Coming soon</span></div>
+    </div>
+    ${allDone ? `<div class="row"><button class="btn amber" id="certBtn">🎖️ 생존 인증서 보기</button></div>` : ''}
+    <p class="small muted">학생이 바뀌었나요? <button class="btn small ghost" id="changeStu">학생 정보 다시 입력</button></p>
+  </main>`;
+  bindTop(app());
+  $$('[data-sec]').forEach(b => b.onclick = () => { const id = b.dataset.sec; const ss = secState(id); save(); goStep(id, ss.complete ? 0 : ss.step); });
+  $('#changeStu').onclick = () => goStart();
+  const cb = $('#certBtn'); if (cb) cb.onclick = () => showCert();
+}
+
+/* ---------------- 단계 이동 ---------------- */
+let CLEANUP = [];
+function cleanup() { CLEANUP.forEach(f => { try { f(); } catch (e) { } }); CLEANUP = []; }
+function goStep(secId, step) {
+  cleanup();
+  const def = SECTIONS[secId]; const ss = secState(secId);
+  ss.step = step; S.view = 'step'; save();
+  const last = step === def.steps.length - 1;
+  app().innerHTML = renderTop({ sec: secId, step }) + `<main id="stage" class="stack"></main>
+  <nav class="navbar" aria-label="단계 이동"><div class="navbar-in">
+    <button class="btn" id="prevBtn" ${step === 0 ? 'disabled' : ''}>◀ 이전</button>
+    <button class="btn ghost" id="homeBtn">🏠 처음으로</button>
+    <span class="spacer"></span><span class="hint" id="navHint"></span>
+    <button class="btn primary" id="nextBtn">${last ? '허브로 ▶' : '다음 ▶'}</button>
+  </div></nav>`;
+  bindTop(app());
+  window.scrollTo(0, 0);
+  const next = $('#nextBtn'), hint = $('#navHint');
+  const refresh = () => { const ok = !!ss.done[step]; next.disabled = !ok; hint.textContent = ok ? '' : '활동을 마치면 다음으로 갈 수 있어요'; };
+  const ctx = {
+    secId, step, ss, def,
+    markDone() { if (!ss.done[step]) { ss.done[step] = true; save(); } refresh(); },
+    log(k, v, overwrite = false) { if (overwrite || ss.logs[k] === undefined) { ss.logs[k] = v; save(); } },
+    save,
+  };
+  $('#prevBtn').onclick = () => goStep(secId, step - 1);
+  $('#homeBtn').onclick = () => { cleanup(); goHub(); };
+  next.onclick = () => { if (!ss.done[step]) return; if (last) { cleanup(); goHub(); } else goStep(secId, step + 1); };
+  refresh();
+  def.steps[step].render($('#stage'), ctx);
+}
+
+/* =========================================================
+   공용 컴포넌트
+   ========================================================= */
+
+/* 스토리 대화창: 대사 2~3줄 + 건너뛰기 */
+function story(root, lines, { name = '세이프', avatar = '🤖', skip = false, cta = '임무 시작 ▶' } = {}) {
+  return new Promise(resolve => {
+    const el = h(`<section class="story" aria-live="polite"><div class="avatar" aria-hidden="true">${avatar}</div><div style="flex:1"><div class="name">${esc(name)}</div><div class="lines"></div><div class="acts"><button class="btn small primary" data-a="next">다음 ▶</button><button class="btn small" data-a="skip">건너뛰기 ⏭</button></div></div></section>`);
+    root.appendChild(el);
+    const box = $('.lines', el); let i = 0;
+    const finish = () => { box.innerHTML = lines.map(l => `<p>${l}</p>`).join(''); $('.acts', el).remove(); el.classList.add('mini'); resolve(); };
+    const show = () => {
+      if (i < lines.length) { const p = h(`<p class="new">${lines[i]}</p>`); box.appendChild(p); i++; }
+      if (i >= lines.length) { $('[data-a=next]', el).textContent = cta; $('[data-a=skip]', el).classList.add('hidden'); }
+    };
+    if (skip) { finish(); return; }
+    show();
+    $('[data-a=next]', el).onclick = () => { if (i >= lines.length) finish(); else show(); };
+    $('[data-a=skip]', el).onclick = finish;
+  });
+}
+
+/* 학습 목표 카드 */
+function goalsBlock(goals, attitude) {
+  return `<div class="goals">${goals.map((g, i) => `<div class="goal"><span class="n">${i + 1}</span><span>${g}</span></div>`).join('')}${attitude ? `<div class="goal attitude"><span class="n">♥</span><span><b>가치·태도</b> · ${attitude}</span></div>` : ''}</div>`;
+}
+
+/* 개념 카드 + 이유 쓰기 (한 줄 이상 써야 제출) */
+function conceptReason(root, { key, tag = '개념 카드', card, q, example }, ctx, onDone) {
+  const ss = ctx.ss; const prev = ss.reasons[key];
+  const el = h(`<div class="stack">
+    <div class="concept"><div class="tag">💡 ${esc(tag)}</div><p>${card}</p></div>
+    <div class="reason"><label for="r_${key}">✏️ ${q}</label>
+      <textarea id="r_${key}" placeholder="생각을 한두 줄로 적어 보세요."></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn primary small" disabled>제출하고 예시 답안 보기</button><span class="small muted">채점하지 않아요. 내 생각을 솔직하게 써 보세요.</span></div>
+      <div class="example hidden"><b>예시 답안</b><br>${example}<div class="small muted" style="margin-top:4px">내 답과 비교해 보세요. 빠진 내용이 있나요?</div></div>
+    </div></div>`);
+  root.appendChild(el);
+  const ta = $('textarea', el), btn = $('.reason .btn', el), ex = $('.example', el);
+  const okLen = () => ta.value.trim().length >= 2;
+  ta.addEventListener('input', () => { btn.disabled = !okLen(); });
+  const done = () => { ex.classList.remove('hidden'); btn.textContent = '제출 완료 ✓ (고쳐서 다시 제출할 수 있어요)'; onDone && onDone(); };
+  btn.onclick = () => { if (!okLen()) return; ss.reasons[key] = ta.value.trim(); ctx.save(); done(); };
+  if (prev) { ta.value = prev; btn.disabled = false; done(); }
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return el;
+}
+
+/* 좀비 접근 표시: 행동 1번 = 한 칸 */
+function zombieTrack(max) {
+  const el = h(`<div class="ztrack" role="status" aria-live="polite"><div class="zlabel"><span>${CONFIG.ZOMBIE} 좀비가 다가오고 있어요</span><span>남은 거리 <b class="zleft">${max}칸</b></span></div>
+    <div class="zlane"><div style="flex:1;position:relative;display:flex;gap:3px;align-items:center;height:44px">${'<span class="zcell"></span>'.repeat(max)}<span class="zwho" aria-hidden="true">${CONFIG.ZOMBIE}</span></div><span class="zhome" aria-hidden="true">🏠</span></div>
+    <div class="zmsg small hidden" style="margin-top:6px;color:#ffd2c8;font-weight:700"></div></div>`);
+  let used = 0;
+  const cells = $$('.zcell', el), who = $('.zwho', el), left = $('.zleft', el), msg = $('.zmsg', el);
+  const draw = () => {
+    const u = Math.min(used, max);
+    cells.forEach((c, i) => c.classList.toggle('passed', i < u));
+    who.style.left = `${(u / max) * 100}%`;
+    left.textContent = used >= max ? '도착!' : `${max - used}칸`;
+  };
+  draw();
+  return {
+    el,
+    step(k = 1) {
+      const before = used; used += k; draw();
+      if (before < max && used >= max) { el.classList.remove('arrived'); void el.offsetWidth; el.classList.add('arrived'); msg.textContent = '아슬아슬했어요! 좀비가 문 앞까지 왔지만 문을 꼭 잠갔어요. 임무는 계속돼요!'; msg.classList.remove('hidden'); }
+    },
+    get used() { return used; },
+    reset() { used = 0; draw(); msg.classList.add('hidden'); el.classList.remove('arrived'); },
+  };
+}
+
+/* 객관식 문항 한 개: 즉시 정답·해설 */
+function questionCard(q, idx, { saved, onAnswer, label } = {}) {
+  const el = h(`<div class="q"><span class="qtag">#${esc(q.tag)}</span><div class="qn">${label || '문항 ' + (idx + 1)}</div><div class="prompt">${q.prompt}</div><div class="opts">${q.options.map((o, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(9312 + i)} ${o}</button>`).join('')}</div><div class="expl hidden"></div></div>`);
+  const opts = $$('.opt', el), ex = $('.expl', el);
+  const reveal = (choice) => {
+    opts.forEach((b, i) => { b.disabled = true; if (i === q.answer) b.classList.add('right'); if (i === choice && i !== q.answer) b.classList.add('wrong'); });
+    const ok = choice === q.answer;
+    ex.className = 'expl ' + (ok ? 'ok' : 'bad');
+    ex.innerHTML = `<b>${ok ? '✅ 정답이에요!' : '❌ 아쉬워요. 정답은 ' + String.fromCharCode(9312 + q.answer) + '번이에요.'}</b><br>${q.expl}`;
+    return ok;
+  };
+  if (saved !== undefined && saved !== null) reveal(saved);
+  else opts.forEach((b, i) => b.onclick = () => { const ok = reveal(i); onAnswer && onAnswer(i, ok); });
+  return el;
+}
+
+/* 빈칸 채우기 표 */
+function fillTable(root, { head, rows }, onAllRight) {
+  // rows: [[label, cell, cell...]] ; cell: string with {{answer|opt1|opt2}} tokens
+  let n = 0; const answers = [];
+  const cellHtml = c => c.replace(/\{\{(.+?)\}\}/g, (_, body) => {
+    const parts = body.split('|'); const ans = parts[0]; const opts = shuffle(parts);
+    answers.push(ans); const id = n++;
+    return `<select data-b="${id}" aria-label="빈칸 ${id + 1}"><option value="">  ? 고르기  </option>${opts.map(o => `<option>${esc(o)}</option>`).join('')}</select><span class="mark" data-m="${id}"></span>`;
+  });
+  const el = h(`<div class="stack"><div style="overflow-x:auto"><table class="table fill"><thead><tr>${head.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr><th>${r[0]}</th>${r.slice(1).map(c => `<td>${cellHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="row"><button class="btn primary small" data-a="chk">확인하기</button><span class="fmsg small"></span></div></div>`);
+  root.appendChild(el);
+  let tries = 0;
+  $('[data-a=chk]', el).onclick = () => {
+    tries++; let right = 0;
+    $$('select', el).forEach(s => {
+      const id = +s.dataset.b; const ok = s.value === answers[id];
+      s.classList.toggle('ok', ok); s.classList.toggle('no', !ok);
+      $(`[data-m="${id}"]`, el).textContent = ok ? '✓ 맞음' : '✗ 다시';
+      if (ok) right++;
+    });
+    const m = $('.fmsg', el);
+    if (right === answers.length) { m.innerHTML = '<b style="color:var(--primary-d)">모두 맞았어요! 🎉</b>'; $$('select', el).forEach(s => s.disabled = true); $('[data-a=chk]', el).disabled = true; onAllRight && onAllRight(); }
+    else if (tries >= 2) { m.innerHTML = `${right}/${answers.length}개 맞음 · <button class="btn small" data-a="show">정답 보기</button>`; $('[data-a=show]', el).onclick = () => { $$('select', el).forEach(s => { s.value = answers[+s.dataset.b]; }); $('[data-a=chk]', el).click(); }; }
+    else m.textContent = `${right}/${answers.length}개 맞음 · ‘✗ 다시’ 칸을 고쳐 보세요.`;
+  };
+  return el;
+}
+
+/* 형성평가 묶음 (객관식 5 + 서술형 1) */
+function formativeBlock(root, ctx, { questions, essay, onComplete }) {
+  const ss = ctx.ss; const A = ss.quiz.answers;
+  const wrap = h(`<div class="stack"></div>`); root.appendChild(wrap);
+  const status = h(`<div class="msg info">문항을 풀면 바로 정답과 해설이 나와요. 객관식 5문항 + 서술형 1문항</div>`);
+  wrap.appendChild(status);
+  const check = () => {
+    const nAns = questions.filter(q => A[q.id] !== undefined).length;
+    if (nAns === questions.length && ss.quiz.essay) {
+      const score = questions.filter(q => A[q.id] === q.answer).length;
+      const wrong = questions.filter(q => A[q.id] !== q.answer).map(q => q.tag);
+      ss.score = score; ss.wrongTags = wrong; save();
+      status.className = 'msg ok'; status.innerHTML = `형성평가 완료! 객관식 <b>${score}/5</b>점이에요. ‘다음’을 눌러 나에게 맞는 경로로 가요.`;
+      onComplete && onComplete(score, wrong);
+    } else status.textContent = `문항을 풀면 바로 정답과 해설이 나와요. (객관식 ${nAns}/5 · 서술형 ${ss.quiz.essay ? '1/1' : '0/1'})`;
+  };
+  questions.forEach((q, i) => wrap.appendChild(questionCard(q, i, { saved: A[q.id], onAnswer: (c) => { A[q.id] = c; save(); check(); } })));
+  // 서술형
+  const es = h(`<div class="q"><span class="qtag">#${esc(essay.tag)}</span><div class="qn">문항 6 (서술형)</div><div class="prompt">${essay.prompt}</div>
+    <textarea placeholder="한두 문장으로 써 보세요."></textarea><div class="row" style="margin-top:8px"><button class="btn primary small" disabled>제출하기</button><span class="small muted">서술형은 선생님이 읽고 피드백해 줘요.</span></div><div class="expl hidden"></div></div>`);
+  wrap.appendChild(es);
+  const ta = $('textarea', es), b = $('button', es), ex = $('.expl', es);
+  ta.oninput = () => b.disabled = ta.value.trim().length < 2;
+  const showEx = (txt) => {
+    const hits = essay.keywords.map(k => ({ k: k.label, y: k.re.test(txt) }));
+    ex.className = 'expl ok'; ex.classList.remove('hidden');
+    ex.innerHTML = `<b>예시 답안</b><br>${essay.example}<div style="margin-top:8px" class="small">내 답에 이 낱말(생각)이 들어갔는지 스스로 확인해 보세요.</div><div class="check">${hits.map(x => `<span class="${x.y ? 'y' : 'n'}">${x.y ? '✓' : '○'} ‘${x.k}’</span>`).join('')}</div>`;
+  };
+  b.onclick = () => { ss.quiz.essay = ta.value.trim(); save(); ta.disabled = true; b.disabled = true; b.textContent = '제출 완료 ✓'; showEx(ss.quiz.essay); check(); };
+  if (ss.quiz.essay) { ta.value = ss.quiz.essay; ta.disabled = true; b.textContent = '제출 완료 ✓'; showEx(ss.quiz.essay); }
+  check();
+}
+
+/* 분기 경로 결정: 객관식 정답 수 기준 */
+function decidePath(score) { return score <= 2 ? '보충' : score <= 4 ? '맞춤 복습' : '심화'; }
+
+/* 재평가 묶음 */
+function retestBlock(root, qs, onDone, { title = '재평가' } = {}) {
+  const wrap = h(`<div class="stack"><h3>📝 ${title} (${qs.length}문항)</h3></div>`); root.appendChild(wrap);
+  const res = []; let cnt = 0;
+  qs.forEach((q, i) => wrap.appendChild(questionCard(q, i, { label: `${title} ${i + 1}`, onAnswer: (c, ok) => { res[i] = ok; cnt++; if (cnt === qs.length) onDone(res.every(Boolean)); } })));
+  return wrap;
+}
+
+/* =========================================================
+   결과 전송 (구글 시트) + 리포트
+   ========================================================= */
+function b64(str) { return btoa(unescape(encodeURIComponent(str))); }
+function sendResult(payload) {
+  return new Promise((resolve) => {
+    // 1) 앱스 스크립트 웹앱으로 함께 배포한 경우
+    if (window.google && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(r => resolve(r || { ok: true })).withFailureHandler(e => resolve({ ok: false, error: String(e && e.message || e) })).saveResult(payload);
+      return;
+    }
+    // 2) 다른 곳에 올리고 SCRIPT_URL을 설정한 경우
+    if (CONFIG.SCRIPT_URL) {
+      fetch(CONFIG.SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
+        .then(r => r.json()).then(resolve).catch(e => resolve({ ok: false, error: '네트워크 오류' }));
+      return;
+    }
+    // 3) 연결 전(체험 모드)
+    resolve({ ok: false, demo: true, error: '아직 구글 시트와 연결되지 않았어요(체험 모드).' });
+  });
+}
+
+function buildPayload(secId) {
+  const ss = secState(secId); const st = S.student || {}; const def = SECTIONS[secId];
+  const minutes = Math.max(1, Math.round(((ss.finishedAt || Date.now()) - ss.startedAt) / 60000));
+  const p = {
+    code: st.code, grade: st.grade, cls: st.cls, num: st.num,
+    section: def.label, score: ss.score ?? '', wrongTags: (ss.wrongTags || []).join(', '),
+    path: ss.path || '', retest: ss.retest || '', predict: ss.logs.predict === undefined ? '' : (ss.logs.predict ? '정답' : '오답'),
+    essay: ss.quiz.essay || '', minutes,
+  };
+  def.payload(ss, p); // act1~3, r1~r6
+  return p;
+}
+
+function sendPanel(root, secId) {
+  const ss = secState(secId);
+  const el = h(`<div class="card stack"><h3>☁️ 선생님께 결과 보내기</h3><div class="smsg msg info">결과를 보내는 중이에요…</div>
+    <div class="row sacts hidden"><button class="btn small primary" data-a="retry">🔁 다시 보내기</button><button class="btn small" data-a="copy">📋 결과 코드 복사</button></div>
+    <textarea class="codebox hidden" readonly aria-label="결과 코드"></textarea></div>`);
+  root.appendChild(el);
+  const m = $('.smsg', el), acts = $('.sacts', el), box = $('.codebox', el);
+  const payload = buildPayload(secId);
+  const code = 'ZSA1.' + b64(JSON.stringify(payload));
+  const go = async () => {
+    m.className = 'smsg msg info'; m.textContent = '결과를 보내는 중이에요…';
+    const r = await sendResult(payload);
+    if (r && r.ok) { ss.sent = true; save(); m.className = 'smsg msg ok'; m.textContent = '✅ 저장됐어요! 선생님이 결과를 확인할 수 있어요.'; acts.classList.add('hidden'); }
+    else { m.className = 'smsg msg ' + (r && r.demo ? 'warn' : 'bad'); m.textContent = (r && r.demo ? '🧪 ' : '⚠️ 저장하지 못했어요: ') + (r && r.error || '알 수 없는 오류') + (r && r.demo ? ' 아래 ‘결과 코드 복사’로 선생님께 제출할 수 있어요.' : ' ‘다시 보내기’를 눌러 보고, 그래도 안 되면 결과 코드를 복사해 선생님께 보내 주세요.'); acts.classList.remove('hidden'); }
+  };
+  $('[data-a=retry]', el).onclick = go;
+  $('[data-a=copy]', el).onclick = async () => {
+    box.value = code; box.classList.remove('hidden');
+    try { await navigator.clipboard.writeText(code); toast('결과 코드를 복사했어요. 선생님께 붙여 넣어 보내 주세요.'); }
+    catch (e) { box.focus(); box.select(); toast('아래 코드를 길게 눌러 복사해 주세요.'); }
+  };
+  if (ss.sent) { m.className = 'smsg msg ok'; m.textContent = '✅ 이미 저장된 결과예요.'; acts.classList.remove('hidden'); $('[data-a=retry]', el).textContent = '🔁 한 번 더 보내기'; }
+  else go();
+}
+
+function reportBlock(root, secId, activityRows) {
+  const ss = secState(secId); const def = SECTIONS[secId];
+  if (!ss.finishedAt) { ss.finishedAt = Date.now(); }
+  ss.complete = true; save();
+  const minutes = Math.max(1, Math.round((ss.finishedAt - ss.startedAt) / 60000));
+  const pathCls = { '보충': 'p1', '맞춤 복습': 'p2', '심화': 'p3' }[ss.path] || 'p3';
+  const wrong = ss.wrongTags || [];
+  const el = h(`<div class="card report stack">
+    <h2>📊 ${def.label} 학습 리포트</h2>
+    <div class="grid2">
+      <div class="stack">
+        <div><div class="muted small">형성평가 (객관식)</div><div class="big">${ss.score}<span style="font-size:1.2rem"> / 5</span></div></div>
+        <div><div class="muted small">틀린 개념</div><div class="chips">${wrong.length ? wrong.map(t => `<span class="chip">${esc(t)}</span>`).join('') : '<span class="chip ok">없음 🎉</span>'}</div></div>
+        <div><div class="muted small">거친 경로 · 재평가</div><span class="path ${pathCls}">${esc(ss.path || '-')}</span> <span class="badge ${ss.retest === '미통과' ? 'amber' : ''}">${esc(ss.retest || '-')}</span></div>
+      </div>
+      <dl class="kv">${activityRows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}<dt>학습 시간</dt><dd>${minutes}분</dd></dl>
+    </div></div>`);
+  root.appendChild(el);
+  sendPanel(root, secId);
+}
+
+/* 생존 인증서 */
+function showCert() {
+  cleanup(); S.view = 'cert'; save();
+  const st = S.student; const d = new Date();
+  const sc = id => S.sec[id] && S.sec[id].complete ? `${S.sec[id].score}/5` : '-';
+  app().innerHTML = renderTop() + `<main class="stack"><div class="cert stack">
+    <div class="seal" aria-hidden="true">🎖️🚁</div><h2>생존 인증서</h2>
+    <p style="font-size:1.15rem"><b>${st.grade}학년 ${st.cls}반 ${st.num}번</b> 생존 대원은</p>
+    <p>보급품 상자를 <b>탐색</b>하고 창고를 <b>정렬</b>하여<br>모든 대원을 무사히 구조 헬기에 태웠기에 이 인증서를 드립니다.</p>
+    <div class="row" style="justify-content:center"><span class="badge">🔎 탐색 ${sc('search')}</span><span class="badge">🗂️ 정렬 ${sc('sort')}</span></div>
+    <p class="muted">${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}. · 대피소 관리 AI 세이프 🤖</p>
+  </div><div class="row"><button class="btn primary" id="toHub">허브로 돌아가기</button></div></main>`;
+  bindTop(app()); $('#toHub').onclick = goHub;
+}
+
+/* 캔버스 크기 맞춤 */
+function fitCanvas(cv, cssH) {
+  const dpr = window.devicePixelRatio || 1; const w = cv.clientWidth || cv.parentElement.clientWidth || 300;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(cssH * dpr); cv.style.height = cssH + 'px';
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); return { c, w, h: cssH };
+}
+
+/* =========================================================
+   섹션 1 · 탐색  (단계 0~8)
+   ========================================================= */
+const SEARCH_GOALS = [
+  '순차 탐색과 이진 탐색의 수행 과정을 단계별로 설명할 수 있다.',
+  '이진 탐색을 정렬된 데이터에서만 쓸 수 있는 이유를 말할 수 있다.',
+  '데이터 개수에 따른 두 탐색의 비교 횟수를 비교할 수 있다.',
+];
+const ATTITUDE = '문제 상황에 맞는 알고리즘을 골라 쓰려는 태도를 가진다.';
+const binMax = n => Math.floor(Math.log2(n)) + 1; // 왼쪽 가운데 규칙 기준 최대 비교 횟수
+const midOf = (lo, hi) => Math.floor((lo + hi) / 2); // 범위가 짝수면 왼쪽 가운데
+
+const SEARCH_CONCEPT = {
+  1: { tag: '1단계 · 범위를 반씩 줄이는 전략', card: '가운데 숫자부터 말하면 힌트를 들을 때마다 범위가 반으로 줄어요. 이 전략은 3단계에서 다시 나와요.', q: '어떤 전략으로 숫자를 골랐나요?', example: '처음에 50처럼 가운데 숫자를 말하고, ‘업’이면 위쪽 절반, ‘다운’이면 아래쪽 절반의 가운데를 다시 말했다.' },
+  2: { tag: '2단계 · 순차 탐색', card: '앞에서부터 하나씩 차례로 확인하는 방법을 <b>순차 탐색</b>이라고 해요. 데이터에 순서가 없으면 이 방법밖에 없고, 상자가 n개면 최대 n번 열어야 해요.', q: '상자를 열 순서를 똑똑하게 정할 방법이 있었나요? 없었다면 왜 그런가요?', example: '없었다. 상자 번호가 뒤죽박죽이라 열어 본 상자가 다른 상자의 위치에 대해 아무것도 알려 주지 않기 때문이다.' },
+  3: { tag: '3단계 · 이진 탐색과 정렬 조건', card: '정렬된 데이터에서 가운데를 확인하고, 찾는 값이 더 크면 오른쪽 절반만, 작으면 왼쪽 절반만 남기는 방법이 <b>이진 탐색</b>이에요. 1단계 주파수 맞히기에서 쓴 전략과 같은 원리예요.', q: '왜 가운데 칸부터 열었나요? 2단계 상자에서는 이 방법을 쓸 수 없었던 이유는 무엇인가요?', example: '가운데를 열면 결과와 상관없이 절반을 한 번에 지울 수 있기 때문이다. 2단계 상자는 번호순이 아니어서, 가운데를 열어도 찾는 상자가 어느 쪽에 있는지 알 수 없었다.' },
+  4: { tag: '4단계 · 효율성 (비교 횟수의 증가)', card: '창고가 2배가 되면 순차 탐색의 최대 횟수는 2배가 되지만, 이진 탐색은 1번만 늘어요. 데이터가 많을수록 두 방법의 차이가 커져요.', q: '예측과 결과가 달랐다면 왜 그런지 써 보세요. (같았다면 그렇게 예측한 이유를 써 보세요.)', example: '창고가 2배가 되어도 이진 탐색은 한 번 비교하면 절반이 지워져 원래 크기로 돌아가므로, 비교가 1번만 늘어난다.' },
+  5: { tag: '5단계 · 상황에 맞는 탐색 고르기', card: '순차 탐색은 어떤 데이터에도 쓸 수 있고, 이진 탐색은 정렬된 데이터에서만 쓸 수 있지만 훨씬 빨라요.', q: '두 탐색 중 하나를 골라야 한다면 무엇을 기준으로 고를까요?', example: '데이터가 정렬되어 있는지, 데이터가 얼마나 많은지, 몇 번이나 찾아야 하는지를 보고 고른다.' },
+};
+
+const SEARCH_Q = [
+  { id: 'q1', tag: '순차 과정', prompt: '뒤죽박죽 쌓인 상자 20개에서 순차 탐색으로 백신을 찾을 때, 최대 몇 개를 열어야 할까요?', options: ['1개', '5개', '10개', '20개'], answer: 3, expl: '순서가 없으면 하나씩 열어야 하고, 백신이 맨 끝에 있으면 20개를 모두 열어야 해요.' },
+  { id: 'q2', tag: '이진 조건', prompt: '이진 탐색을 쓰려면 데이터가 어떤 상태여야 할까요?', options: ['정렬되어 있어야 한다', '개수가 짝수여야 한다', '개수가 100개 이하여야 한다', '같은 값이 여러 개 있어야 한다'], answer: 0, expl: '가운데 값과 비교해 반을 버리려면 작은 값과 큰 값이 각각 한쪽에 모여 있어야 해요.' },
+  { id: 'q3', tag: '이진 과정', prompt: '창고 번호 [3, 8, 12, 17, 21, 25, 30]에서 이진 탐색으로 25를 찾을 때, <u>두 번째로</u> 확인하는 번호는?', options: ['17', '21', '25', '30'], answer: 2, expl: '7칸의 가운데는 17이에요. 25가 더 크니 오른쪽 [21, 25, 30]만 남고, 그 가운데인 25를 두 번째로 확인해요.' },
+  { id: 'q4', tag: '효율성', prompt: '창고 칸이 2배로 늘면 이진 탐색의 최대 비교 횟수는 어떻게 될까요?', options: ['2배가 된다', '변하지 않는다', '1번 늘어난다', '절반이 된다'], answer: 2, expl: '2배가 된 창고도 한 번 비교하면 원래 크기로 줄어들기 때문에 1번만 늘어요.' },
+  { id: 'q5', tag: '상황 적용', prompt: '방금 도착한 보급품 목록(정렬 안 됨)에서 한 가지만 찾는다면 어떤 방법이 적합할까요?', options: ['이진 탐색', '순차 탐색', '정렬한 뒤 이진 탐색', '어떤 방법으로도 찾을 수 없다'], answer: 1, expl: '정렬되지 않은 목록에는 이진 탐색을 쓸 수 없고, 한 번 찾자고 정렬부터 하면 오히려 더 오래 걸려요.' },
+];
+const SEARCH_ESSAY = {
+  tag: '이진 조건 (서술)', prompt: '정렬된 데이터에서만 이진 탐색을 쓸 수 있는 이유를 한두 문장으로 쓰세요.',
+  example: '가운데 값과 비교해 찾는 값이 어느 쪽에 있는지 판단하려면 데이터가 크기 순서로 놓여 있어야 하기 때문이다.',
+  keywords: [{ label: '정렬', re: /정렬|순서|차례/ }, { label: '가운데', re: /가운데|중간|중앙/ }, { label: '반', re: /반|절반|한쪽|어느 ?쪽/ }],
+};
+// 보충·맞춤 복습용 비슷한 문항 (개념 태그별)
+const SEARCH_POOL = {
+  '순차 과정': [
+    { tag: '순차 과정', prompt: '상자 [7, 3, 9, 1, 5, 8, 2, 6]에서 순차 탐색으로 5를 찾을 때 비교 횟수는?', options: ['1번', '3번', '5번', '8번'], answer: 2, expl: '앞에서부터 7, 3, 9, 1, 5 순서로 확인하니 5번째에 찾아요.' },
+    { tag: '순차 과정', prompt: '상자 30개에서 순차 탐색으로 찾는 번호가 <u>없을</u> 때, 몇 번 비교한 뒤에 ‘없다’고 알 수 있을까요?', options: ['1번', '15번', '30번', '알 수 없다'], answer: 2, expl: '순서가 없으니 마지막 상자까지 모두 확인해야 없다는 것을 알 수 있어요.' },
+  ],
+  '이진 조건': [
+    { tag: '이진 조건', prompt: '다음 중 이진 탐색을 <u>바로</u> 쓸 수 있는 데이터는?', options: ['[9, 2, 20, 5, 14]', '[2, 5, 9, 14, 20]', '[5, 20, 2, 14, 9]', '[14, 9, 20, 2, 5]'], answer: 1, expl: '크기 순서로 정렬된 [2, 5, 9, 14, 20]만 가운데와 비교해 반을 버릴 수 있어요.' },
+    { tag: '이진 조건', prompt: '이진 탐색이 가운데 값과 비교한 뒤 절반을 버려도 되는 까닭은?', options: ['데이터 개수가 항상 홀수라서', '찾는 값이 항상 가운데 있어서', '데이터가 정렬되어 있어 찾는 값이 어느 쪽에 있는지 알 수 있어서', '버린 쪽은 나중에 다시 찾아서'], answer: 2, expl: '정렬되어 있으면 가운데보다 큰 값은 모두 오른쪽, 작은 값은 모두 왼쪽에 있어요.' },
+  ],
+  '이진 과정': [
+    { tag: '이진 과정', prompt: '[4, 9, 15, 22, 31, 40, 47]에서 이진 탐색으로 15를 찾을 때, 확인하는 번호를 순서대로 고르면?', options: ['4 → 9 → 15', '22 → 15', '22 → 9 → 15', '31 → 22 → 15'], answer: 2, expl: '가운데 22 확인 → 15가 더 작으니 [4, 9, 15]만 남고 가운데 9 확인 → 15가 더 크니 15 확인.' },
+    { tag: '이진 과정', prompt: '1~100 주파수 맞히기에서 이진 탐색 전략으로 <u>처음</u> 말할 숫자는? (범위가 짝수면 왼쪽 가운데)', options: ['1', '25', '50', '100'], answer: 2, expl: '1~100의 가운데는 50과 51 사이예요. 왼쪽 가운데 규칙에 따라 50을 말해요.' },
+  ],
+  '효율성': [
+    { tag: '효율성', prompt: '창고 칸이 100칸에서 200칸이 되면, 순차 탐색의 최대 비교 횟수는?', options: ['101번', '100번', '200번', '8번'], answer: 2, expl: '순차 탐색은 칸 수만큼 확인해야 하므로 칸이 2배면 최대 횟수도 2배인 200번이에요.' },
+    { tag: '효율성', prompt: '1,000칸 창고(번호순)에서 이진 탐색으로 찾을 때 최대 비교 횟수는?', options: ['10번', '100번', '500번', '1,000번'], answer: 0, expl: '반으로 나누기를 10번 하면 1,000칸이 1칸으로 줄어요. 그래서 최대 10번이에요.' },
+  ],
+  '상황 적용': [
+    { tag: '상황 적용', prompt: '번호순으로 정리된 전교생 명부(1,000명)에서 학생을 여러 번 찾아야 해요. 알맞은 방법은?', options: ['순차 탐색', '이진 탐색', '무작위로 찾기', '명부를 다시 섞은 뒤 찾기'], answer: 1, expl: '이미 정렬되어 있고 데이터가 많으니 이진 탐색이 훨씬 빨라요.' },
+    { tag: '상황 적용', prompt: '친구가 방금 아무렇게나 적어 준 연락처 10개에서 한 명을 찾을 때 알맞은 방법은?', options: ['이진 탐색', '순차 탐색', '찾을 수 없다', '먼저 연락처를 외운다'], answer: 1, expl: '정렬되어 있지 않고 개수도 적으니, 앞에서부터 하나씩 확인하는 순차 탐색이 알맞아요.' },
+  ],
+};
+
+/* ---------- 활동: 순차 탐색 (뒤죽박죽 상자) ---------- */
+function sequentialActivity(root, { n = 20, zmax = 20, guided = false, onFinish }) {
+  const nums = sampleDistinct(n, 10, 99); const target = nums[rand(0, n - 1)];
+  const el = h(`<div class="card stack"><div class="row" style="justify-content:space-between"><span class="target">💉 백신이 든 상자 번호: ${target}번</span><span class="stat">연 상자 <b class="cnt">0</b></span></div>
+    ${guided ? `<div class="rule">👉 <b>순차 탐색 규칙</b>: 맨 앞(왼쪽 위)부터 <b>차례대로</b> 하나씩 열어요. 빛나는 상자를 눌러 보세요.</div>` : '<p class="muted small">상자를 눌러 열면 번호가 보여요. 백신 상자를 찾아보세요!</p>'}
+    <div class="boxes">${nums.map((v, i) => `<button class="box" data-i="${i}" aria-label="${i + 1}번째 상자 (닫힘)"><span class="lid" aria-hidden="true">📦</span></button>`).join('')}</div>
+    <div class="fb"></div></div>`);
+  const zt = zombieTrack(zmax); el.insertBefore(zt.el, el.children[1]);
+  root.appendChild(el);
+  let opened = 0, found = false, nextIdx = 0;
+  const boxes = $$('.box', el), cnt = $('.cnt', el), fb = $('.fb', el);
+  const markGuide = () => boxes.forEach((b, i) => b.classList.toggle('guide', guided && !found && i === nextIdx));
+  markGuide();
+  boxes.forEach(b => b.onclick = () => {
+    const i = +b.dataset.i; if (found || b.classList.contains('open')) return;
+    if (guided && i !== nextIdx) { fb.innerHTML = '<div class="msg warn">순차 탐색은 건너뛰지 않고 앞에서부터 차례대로 확인해요. 빛나는 상자를 열어 보세요.</div>'; return; }
+    opened++; cnt.textContent = opened; zt.step();
+    b.classList.add('open'); b.innerHTML = `<span>${nums[i]}</span>`; b.setAttribute('aria-label', `${i + 1}번째 상자: ${nums[i]}번`);
+    nextIdx = i + 1;
+    if (nums[i] === target) {
+      found = true; b.classList.add('hit'); b.innerHTML = `<span aria-hidden="true">💉</span><span>${nums[i]}</span>`;
+      boxes.forEach(x => { if (!x.classList.contains('open')) x.disabled = true; });
+      fb.innerHTML = `<div class="msg ok">백신 발견! 상자 <b>${opened}개</b>를 열었어요. 순서가 없으면 하나씩 열어 봐야 해요.</div>`;
+      onFinish && onFinish(opened);
+    } else fb.innerHTML = '';
+    markGuide();
+  });
+  return el;
+}
+
+/* ---------- 활동: 이진 탐색 (번호순 창고) ---------- */
+function binaryActivity(root, { n = 31, zmax = 10, guided = false, onFinish }) {
+  const vals = sampleDistinct(n, 1, 99).sort((a, b) => a - b); const ti = rand(0, n - 1); const target = vals[ti];
+  let lo = 0, hi = n - 1, opened = 0, midPicks = 0, found = false;
+  const el = h(`<div class="card stack"><div class="row" style="justify-content:space-between"><span class="target">💉 백신 번호: ${target}</span><span class="row"><span class="stat">연 칸 <b class="cnt">0</b></span><span class="stat">남은 범위 <b class="rng">${n}칸</b></span></span></div>
+    ${guided ? `<div class="rule">👉 <b>가운데 고르기 규칙</b>: 남은 범위의 <b>가운데 칸</b>을 열어요. 범위 칸 수가 짝수면 <b>왼쪽 가운데</b>를 골라요. ‘가운데’ 표시를 따라가 보세요.</div>` : '<p class="muted small">창고는 <b>번호순(작은 수 → 큰 수)</b>으로 정리되어 있어요. 칸을 열면 번호가 보이고, 백신이 있을 수 없는 칸은 흐려져요.</p>'}
+    <div class="legend"><span><i style="background:#dce8f6"></i>남은 범위(닫힘)</span><span><i style="background:#fff"></i>연 칸</span><span><i style="background:#ece8df;border-color:#ddd6c8"></i>제외된 칸(흐림)</span></div>
+    <div class="cells" style="${n < 31 ? `grid-template-columns:repeat(${n},1fr)` : ''}">${vals.map((v, i) => `<button class="cell" data-i="${i}" aria-label="${i + 1}번 칸 (닫힘)"><span class="idx">${i + 1}</span><span class="val">?</span></button>`).join('')}</div>
+    <div class="fb" style="margin-top:18px"></div></div>`);
+  const zt = zombieTrack(zmax); el.insertBefore(zt.el, el.children[1]);
+  root.appendChild(el);
+  const cells = $$('.cell', el), cnt = $('.cnt', el), rng = $('.rng', el), fb = $('.fb', el);
+  const paint = () => {
+    cells.forEach((c, i) => {
+      const out = i < lo || i > hi;
+      if (!c.classList.contains('hit')) c.classList.toggle('out', out);
+      c.classList.toggle('mid', guided && !found && i === midOf(lo, hi));
+    });
+    rng.textContent = found ? '찾음!' : `${hi - lo + 1}칸`;
+  };
+  paint();
+  cells.forEach(c => c.onclick = () => {
+    if (found) return; const i = +c.dataset.i;
+    if (i < lo || i > hi) { fb.innerHTML = '<div class="msg warn">이미 제외된 칸이에요. 밝은 칸(남은 범위)에서 골라 주세요.</div>'; return; }
+    if (c.classList.contains('open')) return;
+    const m = midOf(lo, hi);
+    if (guided && i !== m) { fb.innerHTML = `<div class="msg warn">지금 남은 범위는 ${lo + 1}~${hi + 1}번 칸(${hi - lo + 1}칸)이에요. 가운데는 <b>${m + 1}번 칸</b>이에요${(hi - lo + 1) % 2 === 0 ? ' (짝수라 왼쪽 가운데)' : ''}.</div>`; return; }
+    opened++; if (i === m) midPicks++; cnt.textContent = opened; zt.step();
+    c.classList.add('open'); $('.val', c).textContent = vals[i]; c.setAttribute('aria-label', `${i + 1}번 칸: ${vals[i]}`);
+    if (vals[i] === target) {
+      found = true; c.classList.add('hit'); paint();
+      fb.innerHTML = `<div class="msg ok">백신 발견! <b>${opened}칸</b>을 열었어요. (가장 적게 열면 ${binMax(n)}칸이면 충분해요${opened <= binMax(n) ? ' — 최고예요! 🎉' : ''})</div>`;
+      onFinish && onFinish({ opened, midPicks });
+    } else {
+      const bigger = target > vals[i];
+      if (bigger) lo = i + 1; else hi = i - 1;
+      paint();
+      fb.innerHTML = `<div class="msg info">${vals[i]}은(는) 백신 번호 ${target}보다 <b>${bigger ? '작아요' : '커요'}</b> → 백신은 <b>${bigger ? '오른쪽' : '왼쪽'}</b>에 있어요. ${bigger ? '왼쪽' : '오른쪽'} 칸들은 흐려졌어요.</div>`;
+    }
+  });
+  return el;
+}
+
+/* ---------- 활동: 순차 vs 이진 시뮬레이션 ---------- */
+function searchSim(root, ctx, onChecked) {
+  const ss = ctx.ss;
+  const el = h(`<div class="stack">
+    <div class="card stack">
+      <h3>🔮 먼저 예측해 보세요</h3>
+      <p><b>창고 칸 수가 2배가 되면, 이진 탐색의 최대 비교 횟수는 어떻게 될까요?</b></p>
+      <div class="opts pred">${['2배가 된다', '1번 늘어난다', '변하지 않는다', '절반이 된다'].map((o, i) => `<button class="opt" data-i="${i}">${String.fromCharCode(9312 + i)} ${o}</button>`).join('')}</div>
+    </div>
+    <div class="card stack simbox">
+      <div class="sim-ctrl">
+        <div class="field" style="flex:2"><label for="simN">창고 칸 수: <b class="nv">100</b>칸</label><input id="simN" type="range" min="10" max="1000" step="10" value="100"></div>
+        <div class="field"><label for="simT">찾을 번호 (1~<span class="nmax">100</span>)</label><input id="simT" type="number" min="1" max="100" value="73" style="width:100%;min-height:44px;border:1.5px solid var(--line);border-radius:10px;padding:6px 10px"></div>
+        <div class="field"><label for="simSp">재생 속도</label><input id="simSp" type="range" min="1" max="10" value="4"></div>
+      </div>
+      <div class="row"><button class="btn small" data-a="step">한 단계씩 ⏭</button><button class="btn small primary" data-a="play">자동 재생 ▶</button><button class="btn small" data-a="reset">초기화 ↺</button><button class="btn small ghost" data-a="rnd">🎲 번호 무작위</button></div>
+      <div class="grid2">
+        <div class="panel" id="pSeq"><h3><span>🚶 순차 탐색</span><span class="counter">비교 <span class="c">0</span>번</span></h3><canvas></canvas><div class="say">앞에서부터 한 칸씩 확인해요.</div></div>
+        <div class="panel" id="pBin"><h3><span>✂️ 이진 탐색</span><span class="counter">비교 <span class="c">0</span>번</span></h3><canvas></canvas><div class="say">가운데를 확인하고 절반을 지워요.</div></div>
+      </div>
+      <div class="legend"><span><i style="background:#E9982F;border-color:#E9982F"></i>지금 확인하는 칸</span><span><i style="background:#2E7D5B;border-color:#2E7D5B"></i>찾은 칸</span><span><i style="background:#b9b2a5;border-color:#b9b2a5"></i>확인함/제외됨</span><span><i style="background:#dce8f6"></i>아직 남은 칸</span></div>
+    </div>
+    <div class="card stack resbox hidden"></div>
+  </div>`);
+  root.appendChild(el);
+  const simbox = $('.simbox', el), resbox = $('.resbox', el);
+  const N = $('#simN', el), T = $('#simT', el), SP = $('#simSp', el);
+  const cvS = $('#pSeq canvas', el), cvB = $('#pBin canvas', el);
+  let n = 100, target = 73, seq, bin, timer = null, pred = ss.logs.predictChoice ?? null, runs = 0;
+  const lockSim = (on) => { simbox.style.opacity = on ? .45 : 1; simbox.style.pointerEvents = on ? 'none' : 'auto'; if (on) simbox.setAttribute('inert', ''); else simbox.removeAttribute('inert'); };
+  lockSim(pred === null);
+  const predBtns = $$('.pred .opt', el);
+  const lockPred = () => predBtns.forEach((b, i) => { b.disabled = true; b.classList.toggle('sel', i === pred); });
+  if (pred !== null) lockPred();
+  predBtns.forEach(b => b.onclick = () => { pred = +b.dataset.i; ss.logs.predictChoice = pred; ctx.save(); lockPred(); lockSim(false); toast('예측 완료! 이제 실험해 보세요.'); });
+
+  const reset = () => {
+    stop(); n = +N.value; target = Math.min(n, Math.max(1, +T.value || 1)); T.value = target; T.max = n;
+    $('.nv', el).textContent = n; $('.nmax', el).textContent = n;
+    seq = { i: 0, cur: -1, count: 0, found: false };
+    bin = { lo: 0, hi: n - 1, mid: -1, count: 0, found: false, log: '' };
+    $('#pSeq .say', el).textContent = '앞에서부터 한 칸씩 확인해요.'; $('#pBin .say', el).textContent = '가운데를 확인하고 절반을 지워요.';
+    $$('.panel', el).forEach(p => p.classList.remove('win'));
+    draw();
+  };
+  const layout = (w) => { const cell = Math.max(3, Math.min(34, Math.floor(Math.sqrt((w * 150) / n)))); const cols = Math.max(1, Math.floor(w / cell)); const rows = Math.ceil(n / cols); return { cell, cols, rows }; };
+  const drawGrid = (cv, colorOf) => {
+    const w0 = cv.clientWidth || 300; const L = layout(w0);
+    const { c } = fitCanvas(cv, L.rows * L.cell);
+    for (let i = 0; i < n; i++) {
+      const x = (i % L.cols) * L.cell, y = Math.floor(i / L.cols) * L.cell; const g = L.cell > 6 ? 1.5 : 0.5;
+      c.fillStyle = colorOf(i); c.fillRect(x + g, y + g, L.cell - 2 * g, L.cell - 2 * g);
+      if (L.cell >= 26) { c.fillStyle = '#25222E'; c.font = `${Math.floor(L.cell * 0.36)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(i + 1, x + L.cell / 2, y + L.cell / 2); }
+    }
+  };
+  const draw = () => {
+    drawGrid(cvS, i => (seq.found && i === seq.cur) ? '#2E7D5B' : i === seq.cur ? '#E9982F' : i < seq.i || (i <= seq.cur) ? '#b9b2a5' : '#dce8f6');
+    drawGrid(cvB, i => (bin.found && i === bin.mid) ? '#2E7D5B' : i === bin.mid ? '#E9982F' : (i < bin.lo || i > bin.hi) ? '#b9b2a5' : '#dce8f6');
+    $('#pSeq .c', el).textContent = seq.count; $('#pBin .c', el).textContent = bin.count;
+  };
+  const stepOnce = () => {
+    if (!seq.found) { seq.cur = seq.i; seq.count++; if (seq.i + 1 === target) { seq.found = true; $('#pSeq .say', el).textContent = `${seq.i + 1}번 칸 확인 → 찾았어요! 총 ${seq.count}번 비교`; } else { $('#pSeq .say', el).textContent = `${seq.i + 1}번 칸 확인 → ${target}이 아니에요. 다음 칸으로.`; seq.i++; } }
+    if (!bin.found) {
+      const m = midOf(bin.lo, bin.hi); bin.mid = m; bin.count++; const v = m + 1;
+      if (v === target) { bin.found = true; $('#pBin .say', el).textContent = `가운데 ${v}번 칸 확인 → 찾았어요! 총 ${bin.count}번 비교`; }
+      else if (v < target) { $('#pBin .say', el).textContent = `가운데 ${v}번 칸 확인 → ${target}보다 작아요 → 오른쪽 절반만 남겨요.`; bin.lo = m + 1; }
+      else { $('#pBin .say', el).textContent = `가운데 ${v}번 칸 확인 → ${target}보다 커요 → 왼쪽 절반만 남겨요.`; bin.hi = m - 1; }
+    }
+    draw();
+    if (seq.found && bin.found) { stop(); finishRun(); }
+  };
+  const stop = () => { if (timer) { clearInterval(timer); timer = null; } $('[data-a=play]', el).textContent = '자동 재생 ▶'; };
+  const play = () => {
+    if (timer) { stop(); return; }
+    if (seq.found && bin.found) reset();
+    const sp = +SP.value; const per = Math.max(1, Math.round(Math.pow(1.9, sp - 4))); const ms = Math.max(16, 520 - sp * 50);
+    $('[data-a=play]', el).textContent = '일시정지 ⏸';
+    timer = setInterval(() => { for (let k = 0; k < (seq.found ? 1 : per) && !(seq.found && bin.found); k++) stepOnce(); }, ms);
+  };
+  CLEANUP.push(stop);
+  const finishRun = () => {
+    runs++; $('#pBin', el).classList.add('win');
+    const n2 = n * 2; const correct = pred === 1;
+    if (ss.logs.predict === undefined) ctx.log('predict', correct);
+    const rows = [[10], [100], [1000], [1000000]].map(([k]) => k);
+    resbox.classList.remove('hidden');
+    resbox.innerHTML = `<h3>🔎 예측 확인</h3>
+      <div class="msg ${correct ? 'ok' : 'warn'}">내 예측: ‘${['2배가 된다', '1번 늘어난다', '변하지 않는다', '절반이 된다'][pred]}’ → ${correct ? '정답이에요! 🎉' : '정답은 ‘1번 늘어난다’예요.'}</div>
+      <p>이번 실험: 순차 <b>${seq.count}번</b> vs 이진 <b>${bin.count}번</b>. 창고 ${n.toLocaleString()}칸과 2배인 ${n2.toLocaleString()}칸의 <b>최대</b> 비교 횟수를 비교해 보세요.</p>
+      <div style="overflow-x:auto"><table class="table"><thead><tr><th>창고 칸 수</th><th>순차 탐색 (최대)</th><th>이진 탐색 (최대)</th></tr></thead><tbody>
+      <tr class="hl"><td>${n.toLocaleString()} (지금)</td><td>${n.toLocaleString()}번</td><td>${binMax(n)}번</td></tr>
+      <tr class="hl"><td>${n2.toLocaleString()} (2배)</td><td>${n2.toLocaleString()}번 <span class="small">(2배)</span></td><td>${binMax(n2)}번 <span class="small">(+${binMax(n2) - binMax(n)})</span></td></tr>
+      ${rows.map(k => `<tr><td>${k.toLocaleString()}</td><td>${k.toLocaleString()}번</td><td>${binMax(k)}번</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="small muted">이진 탐색은 한 번 확인할 때마다 남은 칸이 절반으로 줄어요. “반으로 몇 번 나누면 1칸이 남을까?”를 생각하면 최대 횟수를 알 수 있어요. 창고가 2배가 되어도 한 번만 더 나누면 되지요!</p>`;
+    onChecked && onChecked();
+  };
+  N.oninput = reset; T.onchange = reset;
+  $('[data-a=step]', el).onclick = () => { stop(); if (seq.found && bin.found) reset(); stepOnce(); };
+  $('[data-a=play]', el).onclick = play;
+  $('[data-a=reset]', el).onclick = reset;
+  $('[data-a=rnd]', el).onclick = () => { T.value = rand(1, +N.value); reset(); };
+  const ro = new ResizeObserver(() => draw()); ro.observe(cvS); CLEANUP.push(() => ro.disconnect());
+  reset();
+  return el;
+}
+
+/* ---------- 심화: 반으로 나누기 ---------- */
+function halvingActivity(root, total, onDone) {
+  const el = h(`<div class="card stack"><h3>✂️ ${total.toLocaleString()}칸 창고를 반으로 나눠 보기</h3>
+    <p>버튼을 누를 때마다 가운데를 확인하고 절반을 지워요. 몇 번 만에 1칸이 남을까요?</p>
+    <div class="row"><button class="btn primary small" data-a="cut">가운데 확인하고 반 지우기 ✂️</button><span class="stat">확인 횟수 <b class="k">0</b></span></div>
+    <div class="halve"></div><div class="hfb"></div></div>`);
+  root.appendChild(el);
+  let size = total, k = 0; const list = $('.halve', el);
+  const add = () => { list.appendChild(h(`<div><span style="width:6.5em;text-align:right">${size.toLocaleString()}칸</span><span class="bar" style="width:${Math.max(0.4, (size / total) * 100) * 2.4}px"></span></div>`)); list.scrollTop = list.scrollHeight; };
+  add();
+  $('[data-a=cut]', el).onclick = (e) => {
+    if (size <= 1) return;
+    k++; size = Math.floor(size / 2); $('.k', el).textContent = k; add();
+    if (size <= 1) { e.target.disabled = true; $('.hfb', el).innerHTML = `<div class="msg ok">${k}번 만에 1칸이 남았어요! 마지막 1칸까지 확인하면 ${total.toLocaleString()}칸 창고도 <b>최대 ${binMax(total)}번</b>이면 충분해요.</div>`; onDone && onDone(); }
+  };
+}
+
+/* ---------- 단계 정의 ---------- */
+SECTIONS.search = {
+  id: 'search', icon: '🔎', title: '섹션 1 · 탐색', label: '탐색', std: '[12정03-03] 탐색 알고리즘', desc: '뒤죽박죽 상자와 번호순 창고에서 백신을 찾아라! 순차 탐색 vs 이진 탐색',
+  payload(ss, p) {
+    p.act1 = ss.logs.guessTries ?? ''; p.act2 = ss.logs.seqOpened ?? '';
+    p.act3 = ss.logs.binOpened === undefined ? '' : `${ss.logs.binOpened} (가운데 ${ss.logs.binMid}/${ss.logs.binOpened})`;
+    ['s1', 's2', 's3', 's4', 's5'].forEach((k, i) => p['r' + (i + 1)] = ss.reasons[k] || ''); p.r6 = '';
+  },
+  steps: [
+    { name: '시작 · 프롤로그', async render(root, ctx) {
+      await story(root, ['도시에 좀비가 퍼져 우리는 대피소에 고립됐어요.', '나는 대피소 관리 AI ‘세이프’예요. 구조대가 올 때까지 함께 버텨요!', '신입 생존 대원님, 이번 임무에서 이걸 할 수 있게 될 거예요.'], { skip: !!ctx.ss.done[0], cta: '학습 목표 보기 ▶' });
+      root.appendChild(h(`<div class="card stack"><h2>🎯 학습 목표</h2>${goalsBlock(SEARCH_GOALS, ATTITUDE)}</div>`));
+      ctx.markDone();
+    } },
+    { name: '도입 · 무전기 주파수 맞히기', async render(root, ctx) {
+      await story(root, ['구조대와 연결하려면 무전기 주파수를 맞혀야 해요.', '주파수는 1~100 사이예요. 숫자를 말하면 ‘업’ 또는 ‘다운’을 알려 줄게요.'], { skip: !!ctx.ss.done[1] });
+      const target = rand(1, 100); let tries = 0, solved = false;
+      const el = h(`<div class="card stack"><div class="radio" aria-hidden="true">📻</div>
+        <form class="guess" style="justify-content:center"><label for="gIn" class="hidden">주파수</label><input id="gIn" type="number" min="1" max="100" inputmode="numeric" placeholder="1~100"><button class="btn primary">맞히기</button><span class="stat">시도 <b class="t">0</b>번</span></form>
+        <div class="hist" style="justify-content:center"></div><div class="fb"></div><div class="cr"></div></div>`);
+      root.appendChild(el);
+      const inp = $('#gIn', el); inp.focus();
+      $('form', el).onsubmit = e => {
+        e.preventDefault(); if (solved) return; const v = Math.round(+inp.value);
+        if (!v || v < 1 || v > 100) { $('.fb', el).innerHTML = '<div class="msg warn">1부터 100 사이의 숫자를 입력하세요.</div>'; return; }
+        tries++; $('.t', el).textContent = tries;
+        const kind = v === target ? 'hit' : v < target ? 'up' : 'down';
+        $('.hist', el).appendChild(h(`<span class="h ${kind}">${v} ${kind === 'hit' ? '🎯 연결!' : kind === 'up' ? '⬆️ 업' : '⬇️ 다운'}</span>`));
+        inp.value = ''; inp.focus();
+        if (kind === 'hit') {
+          solved = true; ctx.log('guessTries', tries);
+          $('.fb', el).innerHTML = `<div class="msg ok">📡 주파수 ${target} 연결 성공! ${tries}번 만에 맞혔어요. 최대 7번이면 충분해요.</div>`;
+          conceptReason($('.cr', el), { key: 's1', ...SEARCH_CONCEPT[1] }, ctx, () => ctx.markDone());
+        } else $('.fb', el).innerHTML = `<div class="msg info">${kind === 'up' ? '⬆️ 업! 더 큰 숫자예요.' : '⬇️ 다운! 더 작은 숫자예요.'}</div>`;
+      };
+      if (ctx.ss.done[1]) { $('.fb', el).innerHTML = '<div class="msg ok">이미 완료한 활동이에요. 다시 해 봐도 좋아요!</div>'; conceptReason($('.cr', el), { key: 's1', ...SEARCH_CONCEPT[1] }, ctx, () => ctx.markDone()); }
+    } },
+    { name: '직접 탐색 ① · 뒤죽박죽 상자 20개', async render(root, ctx) {
+      await story(root, ['창고에 보급품 상자 20개가 뒤죽박죽 쌓여 있어요.', '이 중 하나에 백신이 들어 있어요. 상자를 열어 번호를 확인하며 찾아 주세요!', '상자를 열 때마다 소리가 나서 좀비가 한 칸씩 다가와요. 😱'], { skip: !!ctx.ss.done[2] });
+      const cr = h('<div></div>');
+      sequentialActivity(root, { n: 20, zmax: 20, onFinish: (k) => { ctx.log('seqOpened', k); cr.innerHTML = ''; conceptReason(cr, { key: 's2', ...SEARCH_CONCEPT[2] }, ctx, () => ctx.markDone()); } });
+      root.appendChild(cr);
+      if (ctx.ss.done[2]) conceptReason(cr, { key: 's2', ...SEARCH_CONCEPT[2] }, ctx, () => ctx.markDone());
+    } },
+    { name: '직접 탐색 ② · 번호순 창고 31칸', async render(root, ctx) {
+      await story(root, ['다행히 번호순으로 정리된 창고 31칸이 남아 있어요.', '이번에도 백신 번호를 찾아야 해요. 좀비가 가까워서 10칸밖에 여유가 없어요!'], { skip: !!ctx.ss.done[3] });
+      const cr = h('<div></div>');
+      binaryActivity(root, { n: 31, zmax: 10, onFinish: ({ opened, midPicks }) => { ctx.log('binOpened', opened); ctx.log('binMid', midPicks); cr.innerHTML = ''; conceptReason(cr, { key: 's3', ...SEARCH_CONCEPT[3] }, ctx, () => ctx.markDone()); } });
+      root.appendChild(cr);
+      if (ctx.ss.done[3]) conceptReason(cr, { key: 's3', ...SEARCH_CONCEPT[3] }, ctx, () => ctx.markDone());
+    } },
+    { name: '시뮬레이션 · 순차 vs 이진', async render(root, ctx) {
+      await story(root, ['만약 창고가 100만 칸이라면 어떨까요?', '시뮬레이터로 두 방법을 나란히 놓고 실험해 봐요. 칸 수와 찾을 번호를 바꿔 보세요.'], { skip: !!ctx.ss.done[4] });
+      const cr = h('<div></div>'); let shown = false;
+      searchSim(root, ctx, () => { if (shown) return; shown = true; conceptReason(cr, { key: 's4', ...SEARCH_CONCEPT[4] }, ctx, () => ctx.markDone()); });
+      root.appendChild(cr);
+      if (ctx.ss.done[4]) { shown = true; conceptReason(cr, { key: 's4', ...SEARCH_CONCEPT[4] }, ctx, () => ctx.markDone()); }
+    } },
+    { name: '개념 정리 · 두 탐색 비교', async render(root, ctx) {
+      root.appendChild(h(`<div class="card stack"><h2>🧾 두 탐색 비교 카드</h2><p class="muted">빈칸을 골라 비교 카드를 완성하세요.</p><div class="ft"></div></div>`));
+      const cr = h('<div></div>');
+      fillTable($('.ft', root), {
+        head: ['', '🚶 순차 탐색', '✂️ 이진 탐색'],
+        rows: [
+          ['원리', '앞에서부터 {{하나씩 차례로|가운데부터|무작위로}} 확인한다', '{{가운데|맨 앞|맨 뒤}} 값과 비교해 범위를 {{절반|하나씩|두 배}}으로 줄인다'],
+          ['사용 조건', '{{어떤 데이터에도|정렬된 데이터에만|짝수 개 데이터에만}} 쓸 수 있다', '{{정렬된 데이터에서만|어떤 데이터에도|섞인 데이터에서만}} 쓸 수 있다'],
+          ['최대 비교 횟수<br><span class="small muted">(1,000칸)</span>', '{{1,000번|10번|500번}}', '{{10번|1,000번|100번}}'],
+          ['칸이 2배가 되면', '최대 횟수가 {{2배가 된다|1번 는다|그대로다}}', '최대 횟수가 {{1번 는다|2배가 된다|절반이 된다}}'],
+        ],
+      }, () => { cr.innerHTML = ''; conceptReason(cr, { key: 's5', ...SEARCH_CONCEPT[5] }, ctx, () => ctx.markDone()); });
+      root.appendChild(cr);
+      if (ctx.ss.done[5]) conceptReason(cr, { key: 's5', ...SEARCH_CONCEPT[5] }, ctx, () => ctx.markDone());
+    } },
+    { name: '형성평가', async render(root, ctx) {
+      await story(root, ['임무 점검 시간이에요! 문제를 풀면 바로 정답과 해설을 알려 줄게요.'], { skip: true });
+      root.appendChild(h(`<div class="row small muted">학습 목표 ① 과정 설명 · ② 정렬 조건 · ③ 비교 횟수 에 맞춘 문항이에요.</div>`));
+      formativeBlock(root, ctx, { questions: SEARCH_Q, essay: SEARCH_ESSAY, onComplete: () => ctx.markDone() });
+    } },
+    { name: '보충 · 맞춤 복습 · 심화', async render(root, ctx) { branchStep(root, ctx, 'search'); } },
+    { name: '결과 · 탐색 엔딩', async render(root, ctx) {
+      const L = ctx.ss.logs;
+      reportBlock(root, 'search', [
+        ['도입: 주파수 시도', L.guessTries !== undefined ? `${L.guessTries}번` : '-'],
+        ['직접 탐색 ①: 연 상자', L.seqOpened !== undefined ? `${L.seqOpened}개 / 20개` : '-'],
+        ['직접 탐색 ②: 연 칸', L.binOpened !== undefined ? `${L.binOpened}칸 (가운데 ${L.binMid}번) · 최적 5칸` : '-'],
+        ['시뮬레이션 예측', L.predict === undefined ? '-' : L.predict ? '정답' : '오답'],
+      ]);
+      await story(root, ['백신을 찾았어요! 하지만 다른 창고들은 상자가 뒤죽박죽이에요.', '정렬되어 있지 않으면 이진 탐색을 쓸 수 없죠. 다음 임무는 <b>창고 정리(정렬)</b>예요!'], { cta: '확인 ✓' });
+      ctx.markDone();
+    } },
+  ],
+};
+
+/* =========================================================
+   분기 단계 (탐색·정렬 공통)
+   ========================================================= */
+function branchStep(root, ctx, secId) {
+  const ss = ctx.ss; const isSearch = secId === 'search';
+  const POOL = isSearch ? SEARCH_POOL : SORT_POOL;
+  if (ss.score === undefined) { root.appendChild(h('<div class="msg warn">먼저 형성평가를 끝내 주세요.</div>')); return; }
+  const path = decidePath(ss.score); if (!ss.path) { ss.path = path; save(); }
+  const wrong = [...new Set(ss.wrongTags || [])];
+  const pc = { '보충': 'p1', '맞춤 복습': 'p2', '심화': 'p3' }[path];
+  const head = h(`<div class="card stack"><h2>🧭 나의 다음 경로</h2>
+    <p>형성평가 객관식 <b>${ss.score}/5</b> → <span class="path ${pc}">${path === '보충' ? '🛠️ 보충' : path === '맞춤 복습' ? '🎯 맞춤 복습' : '🚀 심화'}</span></p>
+    <p class="muted small">${path === '보충' ? '틀린 개념을 다시 보고, 힌트와 함께 따라 해 본 뒤 재평가 2문항을 풀어요.' : path === '맞춤 복습' ? '틀린 문항의 개념만 짧게 복습하고, 비슷한 문항에 다시 도전해요.' : '모두 맞혔어요! 한 단계 더 나아간 내용을 맛보기로 살펴봐요.'}</p></div>`);
+  root.appendChild(head);
+  if (ss.branchDone) {
+    root.appendChild(h(`<div class="msg ok">이미 완료한 경로예요. 재평가 결과: <b>${esc(ss.retest)}</b>. ‘다음’을 눌러 결과 리포트로 가요.</div>`));
+    ctx.markDone(); return;
+  }
+  const body = h('<div class="stack"></div>'); root.appendChild(body);
+  const conceptOf = isSearch ? SEARCH_TAG_CONCEPT : SORT_TAG_CONCEPT;
+  const finish = (result) => {
+    ss.retest = result; ss.branchDone = true; save();
+    if (result === '미통과') body.appendChild(h(`<div class="msg bad">아직 헷갈리는 부분이 남아 있어요. 🙋 손을 들고 <b>선생님께 질문</b>해 보세요. 리포트에 표시되어 선생님이 도와줄 거예요.</div>`));
+    else if (result === '통과') body.appendChild(h(`<div class="msg ok">재평가 통과! 🎉 마지막으로 개념을 정리하고 마무리해요.</div>`));
+    if (result !== '해당 없음') body.appendChild(h(`<div class="concept"><div class="tag">💡 개념 정리</div><p>${isSearch ? SEARCH_CONCEPT[5].card : SORT_CONCEPT.wrap.card}</p></div>`));
+    ctx.markDone();
+  };
+
+  // 탐색 ②에서 7칸 이상 열었으면 점수와 관계없이 '가운데 고르기' 추천
+  if (isSearch && path !== '보충' && (ss.logs.binOpened || 0) >= 7) {
+    const rec = h(`<div class="card stack"><h3>⭐ 추천 활동 · 가운데 고르기 따라 하기</h3><p class="small muted">직접 탐색 ②에서 ${ss.logs.binOpened}칸을 열었어요. 가운데를 고르면 최대 ${binMax(31)}칸이면 충분해요. 한 번 따라 해 볼까요? (선택 활동)</p><button class="btn small">따라 해 보기</button><div class="recbox"></div></div>`);
+    body.appendChild(rec);
+    $('button', rec).onclick = (e) => { e.target.remove(); binaryActivity($('.recbox', rec), { n: 15, zmax: 10, guided: true }); };
+  }
+
+  if (path === '보충') {
+    body.appendChild(h(`<div class="card stack"><h3>📘 틀린 개념 다시 보기</h3>${wrong.map(t => `<div class="concept"><div class="tag">#${esc(t)}</div><p>${conceptOf[t]}</p></div>`).join('')}</div>`));
+    const act = h(`<div class="card stack"><h3>🛠️ 힌트와 함께 따라 하기</h3><div class="ab"></div></div>`); body.appendChild(act);
+    const goRetest = () => {
+      if ($('.rt', body)) return;
+      const tags = wrong.length >= 2 ? wrong.slice(0, 2) : [wrong[0], wrong[0]];
+      const qs = tags.map((t, i) => POOL[t][tags[0] === tags[1] ? i : 0]);
+      const rt = h('<div class="rt"></div>'); body.appendChild(rt);
+      retestBlock(rt, qs, ok => finish(ok ? '통과' : '미통과'));
+      rt.scrollIntoView({ behavior: 'smooth' });
+    };
+    if (isSearch) {
+      const useSeq = !wrong.some(t => t.startsWith('이진')) && wrong.includes('순차 과정');
+      if (useSeq) sequentialActivity($('.ab', act), { n: 10, zmax: 10, guided: true, onFinish: () => setTimeout(goRetest, 600) });
+      else binaryActivity($('.ab', act), { n: 15, zmax: 10, guided: true, onFinish: () => setTimeout(goRetest, 600) });
+    } else {
+      const which = (wrong.find(t => /선택|버블|삽입/.test(t)) || '선택 과정').slice(0, 2);
+      const kind = { '선택': 'selection', '버블': 'bubble', '삽입': 'insertion' }[which];
+      sortFollow($('.ab', act), { kind, arr: shuffle(sampleDistinct(6, 1, 30)), zmax: 20, showRule: true, onFinish: () => setTimeout(goRetest, 600) });
+    }
+  } else if (path === '맞춤 복습') {
+    body.appendChild(h(`<div class="card stack"><h3>🎯 틀린 개념만 짧게 복습</h3>${wrong.map(t => `<div class="concept"><div class="tag">#${esc(t)}</div><p>${conceptOf[t]}</p></div>`).join('')}</div>`));
+    const qs = wrong.map(t => POOL[t][0]);
+    retestBlock(body, qs, ok => finish(ok ? '통과' : '미통과'), { title: '재도전' });
+  } else {
+    if (isSearch) {
+      halvingActivity(body, 1000000, () => {
+        body.appendChild(h(`<div class="card stack"><h3>📐 빅오(O) 표기 맛보기</h3>
+          <p>데이터 개수를 <b>n</b>이라 할 때, 비교 횟수가 n에 따라 <b>어떻게 늘어나는지</b>를 간단히 나타내는 표기예요.</p>
+          <div style="overflow-x:auto"><table class="table"><thead><tr><th>표기</th><th>뜻</th><th>예</th><th>n = 1,000,000</th></tr></thead><tbody>
+          <tr><td><b>O(n)</b></td><td>n에 비례해 늘어남</td><td>순차 탐색</td><td>최대 1,000,000번</td></tr>
+          <tr><td><b>O(log n)</b></td><td>“반으로 몇 번 나누면 1이 될까?”만큼 늘어남</td><td>이진 탐색</td><td>최대 20번</td></tr>
+          <tr><td><b>O(n²)</b></td><td>n의 제곱에 비례 (정렬 섹션에서 만나요)</td><td>선택·버블 정렬</td><td>약 1조 번</td></tr></tbody></table></div></div>`));
+        body.appendChild(h(`<div class="card stack"><h3>🌏 생활 속 이진 탐색</h3><div class="grid2">
+          <div class="goal"><span class="n">📖</span><span><b>종이 사전 찾기</b> — 가운데쯤 펼쳐 보고 앞뒤 절반을 고른다.</span></div>
+          <div class="goal"><span class="n">🔢</span><span><b>업다운 게임</b> — 1단계 주파수 맞히기가 바로 이진 탐색!</span></div>
+          <div class="goal"><span class="n">📚</span><span><b>도서관 청구기호</b> — 번호순 서가에서 범위를 좁혀 간다.</span></div>
+          <div class="goal"><span class="n">🐞</span><span><b>버그 찾기</b> — 문제가 생긴 시점을 절반씩 좁혀 찾는다 (git bisect).</span></div></div></div>`));
+        retestBlock(body, [{ tag: '효율성', prompt: '번호순으로 정리된 <b>100만 칸</b> 창고에서 이진 탐색으로 찾을 때 최대 몇 번 비교할까요?', options: ['20번', '1,000번', '50만 번', '100만 번'], answer: 0, expl: '반으로 나누기를 거듭하면 100만 칸도 최대 20번이면 끝나요. 순차 탐색이면 최대 100만 번!' }], () => finish('해당 없음'), { title: '심화 도전' });
+      });
+    } else {
+      advancedSort(body, () => retestBlock(body, [{ tag: '효율성', prompt: '상자 수가 10배가 될 때 비교 횟수가 대략 <b>100배</b>로 늘어나는 정렬은?', options: ['병합 정렬', '퀵 정렬(평균)', '선택 정렬', '정렬은 모두 10배만 는다'], answer: 2, expl: '선택 정렬은 O(n²)이라 n이 10배면 비교 횟수가 약 100배로 늘어요. 퀵·병합 정렬은 평균 O(n log n)이라 훨씬 덜 늘어요.' }], () => finish('해당 없음'), { title: '심화 도전' }));
+    }
+  }
+}
+
+const SEARCH_TAG_CONCEPT = {
+  '순차 과정': SEARCH_CONCEPT[2].card,
+  '이진 조건': '이진 탐색은 가운데 값과 비교해 찾는 값이 어느 쪽에 있는지 판단해요. 그래서 데이터가 <b>크기 순서로 정렬</b>되어 있어야만 쓸 수 있어요.',
+  '이진 과정': SEARCH_CONCEPT[3].card + ' 범위 칸 수가 짝수면 <b>왼쪽 가운데</b>를 골라요.',
+  '효율성': SEARCH_CONCEPT[4].card,
+  '상황 적용': SEARCH_CONCEPT[5].card + ' 한 번만 찾는데 정렬부터 하면 오히려 오래 걸려요.',
+};
+
+/* =========================================================
+   섹션 2 · 정렬  (단계 0~7)
+   ========================================================= */
+const SORT_GOALS = [
+  '선택·버블·삽입 정렬의 수행 과정을 직접 따라 할 수 있다.',
+  '세 정렬의 비교·교환 횟수를 비교해 특징을 설명할 수 있다.',
+];
+const SORT_CONCEPT = {
+  1: { tag: '1단계 · 정렬의 뜻', card: '정렬은 데이터를 기준(여기서는 번호)에 따라 순서대로 늘어놓는 것이에요. 같은 상자라도 정리하는 방법에 따라 옮기는 횟수가 달라져요.', q: '어떤 순서로 상자를 옮겼나요?', example: '가장 작은 번호 상자를 찾아 맨 앞으로 옮기고, 그다음 작은 상자를 두 번째 자리로 옮기는 식으로 정리했다.' },
+  sel: { tag: '2단계 · 선택 정렬', card: '남은 상자 중 가장 작은 번호를 찾아 맨 앞자리와 바꾸는 일을 반복해요. 앞에서부터 한 칸씩 자리가 확정돼요.', q: '가장 작은 상자를 찾을 때 왜 남은 상자를 모두 확인해야 하나요?', example: '남은 상자는 순서가 없어서, 하나라도 안 보면 그 상자가 더 작은지 알 수 없기 때문이다.' },
+  bub: { tag: '2단계 · 버블 정렬', card: '이웃한 두 상자를 비교해 큰 번호를 뒤로 보내는 일을 반복해요. 한 바퀴 돌면 가장 큰 상자가 맨 뒤에 자리 잡아요.', q: '한 바퀴를 돌고 나면 맨 뒤 상자가 항상 가장 큰 이유는 무엇인가요?', example: '가장 큰 상자는 어떤 이웃과 비교해도 더 크기 때문에 비교할 때마다 계속 뒤로 밀려 맨 끝까지 가기 때문이다.' },
+  ins: { tag: '2단계 · 삽입 정렬', card: '상자를 하나씩 꺼내, 이미 정리된 앞부분에서 알맞은 자리를 찾아 끼워 넣어요. 카드를 손에 들고 정리하는 방식과 같아요.', q: '세 방법 중 가장 편했던 것과 그 이유는?', example: '삽입 정렬이 편했다. 앞부분은 이미 정리되어 있어서 꺼낸 상자가 들어갈 자리만 찾으면 됐기 때문이다.' },
+  3: { tag: '3단계 · 효율성, 데이터 상태에 따른 차이', card: '같은 상자 수라도 처음 상태에 따라 빠른 방법이 달라져요. 거의 정렬된 상태에서는 삽입 정렬이 특히 빨라요.', q: '‘거의 정렬됨’ 상태에서 삽입 정렬이 빠른 이유는 무엇일까요?', example: '꺼낸 상자가 이미 거의 제자리에 있어서, 앞의 상자와 한두 번만 비교하면 끼울 자리를 바로 찾기 때문이다.' },
+  4: { tag: '4단계 · 상황에 맞는 정렬 고르기', card: '정렬 방법은 비교·교환 횟수가 다르고, 데이터의 처음 상태에 따라 유리한 방법도 달라져요. 정렬을 해 두면 이진 탐색을 쓸 수 있어요.', q: '창고를 정리해 두면 어떤 점이 좋을까요? (탐색 섹션과 연결)', example: '번호순으로 정리해 두면 이진 탐색을 쓸 수 있어서, 백신 상자를 훨씬 적은 횟수로 빠르게 찾을 수 있다.' },
+};
+SORT_CONCEPT.wrap = SORT_CONCEPT[4];
+
+const SORT_Q = [
+  { id: 'q1', tag: '선택 과정', prompt: '[5, 3, 8, 1, 6]을 선택 정렬할 때, <u>첫 번째 회전</u>이 끝난 뒤의 모습은?', options: ['[3, 5, 8, 1, 6]', '[1, 3, 8, 5, 6]', '[1, 3, 5, 6, 8]', '[3, 5, 1, 6, 8]'], answer: 1, expl: '남은 상자 중 가장 작은 1을 찾아 맨 앞의 5와 바꿔요. 그래서 [1, 3, 8, 5, 6]이 돼요.' },
+  { id: 'q2', tag: '버블 과정', prompt: '[4, 2, 7, 1]을 버블 정렬할 때, <u>첫 바퀴</u>가 끝난 뒤의 모습은?', options: ['[2, 4, 1, 7]', '[1, 2, 4, 7]', '[2, 4, 7, 1]', '[4, 2, 1, 7]'], answer: 0, expl: '4↔2 교환 → [2, 4, 7, 1], 4와 7은 그대로, 7↔1 교환 → [2, 4, 1, 7]. 가장 큰 7이 맨 뒤로 갔어요.' },
+  { id: 'q3', tag: '삽입 과정', prompt: '앞부분 [2, 5, 9]가 정리된 상태에서 삽입 정렬로 6을 끼워 넣으면?', options: ['[6, 2, 5, 9]', '[2, 6, 5, 9]', '[2, 5, 9, 6]', '[2, 5, 6, 9]'], answer: 3, expl: '9는 6보다 커서 뒤로 밀고, 5는 6보다 작으니 5 뒤에 끼워요. → [2, 5, 6, 9]' },
+  { id: 'q4', tag: '효율성', prompt: '상자 8개를 선택 정렬로 정리할 때, 비교 횟수는 처음 상태와 관계없이 항상 몇 번일까요?', options: ['8번', '28번', '64번', '처음 상태에 따라 다르다'], answer: 1, expl: '선택 정렬은 남은 상자를 모두 비교하므로 7+6+5+4+3+2+1 = 28번이에요. 처음 상태와 상관없이 같아요.' },
+  { id: 'q5', tag: '상황 적용', prompt: '번호순으로 정리된 출석부 맨 끝에 전학생 1명을 추가했어요. 다시 번호순으로 정리할 때 가장 알맞은 방법은?', options: ['선택 정렬', '버블 정렬', '삽입 정렬', '처음부터 섞은 뒤 정렬'], answer: 2, expl: '거의 정렬된 상태라서, 새 학생만 꺼내 알맞은 자리에 끼우는 삽입 정렬이 가장 적게 비교해요.' },
+];
+const SORT_ESSAY = {
+  tag: '효율성 (서술)', prompt: '‘거의 정렬된’ 상자들을 정리할 때 삽입 정렬이 빠른 이유를 한두 문장으로 쓰세요.',
+  example: '앞부분이 이미 거의 정리되어 있어서, 새 상자를 꺼낼 때 한두 번만 비교하면 제자리를 찾을 수 있기 때문이다.',
+  keywords: [{ label: '정리된(정렬된)', re: /정리|정렬|순서/ }, { label: '비교', re: /비교/ }, { label: '자리', re: /자리|위치|끼/ }],
+};
+const SORT_POOL = {
+  '선택 과정': [
+    { tag: '선택 과정', prompt: '[6, 2, 9, 4]를 선택 정렬할 때, 첫 번째 회전 뒤의 모습은?', options: ['[2, 6, 9, 4]', '[2, 4, 6, 9]', '[6, 2, 4, 9]', '[2, 6, 4, 9]'], answer: 0, expl: '가장 작은 2를 찾아 맨 앞의 6과 바꿔요 → [2, 6, 9, 4].' },
+    { tag: '선택 과정', prompt: '선택 정렬이 한 회전마다 하는 일은?', options: ['이웃한 두 값을 비교해 바꾼다', '남은 값 중 가장 작은 값을 찾아 맨 앞과 바꾼다', '값을 하나 꺼내 정리된 부분에 끼운다', '가운데 값과 비교해 반을 버린다'], answer: 1, expl: '선택 정렬은 가장 작은 값을 ‘선택’해 앞자리를 하나씩 확정해요.' },
+  ],
+  '버블 과정': [
+    { tag: '버블 과정', prompt: '[3, 1, 4, 2]를 버블 정렬할 때, 첫 바퀴 뒤의 모습은?', options: ['[1, 3, 4, 2]', '[1, 2, 3, 4]', '[1, 3, 2, 4]', '[3, 1, 2, 4]'], answer: 2, expl: '3↔1 교환 → [1, 3, 4, 2], 3과 4 그대로, 4↔2 교환 → [1, 3, 2, 4].' },
+    { tag: '버블 과정', prompt: '버블 정렬에서 한 바퀴를 돌면 확실히 자리가 정해지는 것은?', options: ['가장 작은 값이 맨 앞', '가장 큰 값이 맨 뒤', '가운데 값이 가운데', '아무것도 정해지지 않는다'], answer: 1, expl: '큰 값이 이웃과 비교될 때마다 뒤로 밀려, 한 바퀴 뒤 가장 큰 값이 맨 뒤에 자리 잡아요.' },
+  ],
+  '삽입 과정': [
+    { tag: '삽입 과정', prompt: '정리된 [1, 4, 7, 10]에 삽입 정렬로 5를 끼워 넣으면?', options: ['[1, 4, 5, 7, 10]', '[1, 5, 4, 7, 10]', '[5, 1, 4, 7, 10]', '[1, 4, 7, 5, 10]'], answer: 0, expl: '10, 7은 5보다 커서 뒤로 밀고, 4는 작으니 4 뒤에 끼워요.' },
+    { tag: '삽입 과정', prompt: '삽입 정렬을 바르게 설명한 것은?', options: ['가장 큰 값을 찾아 맨 뒤로 보낸다', '값을 하나씩 꺼내 정리된 앞부분의 알맞은 자리에 끼운다', '이웃한 두 값만 계속 바꾼다', '전체를 반으로 나눈다'], answer: 1, expl: '카드를 한 장씩 손에 든 카드 사이에 끼워 정리하는 방식이에요.' },
+  ],
+  '효율성': [
+    { tag: '효율성', prompt: '상자 5개를 선택 정렬할 때 비교 횟수는?', options: ['5번', '10번', '20번', '25번'], answer: 1, expl: '4+3+2+1 = 10번이에요.' },
+    { tag: '효율성', prompt: '역순 [5, 4, 3, 2, 1]을 버블 정렬할 때 교환 횟수는?', options: ['4번', '5번', '10번', '0번'], answer: 2, expl: '역순이면 비교할 때마다 교환이 일어나서 4+3+2+1 = 10번 교환해요.' },
+  ],
+  '상황 적용': [
+    { tag: '상황 적용', prompt: '거의 정렬된 데이터를 정리할 때 가장 유리한 정렬은?', options: ['선택 정렬', '버블 정렬', '삽입 정렬', '모두 같다'], answer: 2, expl: '삽입 정렬은 거의 정렬된 상태에서 한두 번만 비교하면 제자리를 찾아 매우 빨라요.' },
+    { tag: '상황 적용', prompt: '상자를 옮기는 일(교환)이 아주 힘들어서 <u>교환 횟수</u>를 최대한 줄이고 싶어요. 알맞은 정렬은?', options: ['선택 정렬', '버블 정렬', '삽입 정렬', '모두 같다'], answer: 0, expl: '선택 정렬은 한 회전에 최대 1번만 교환하므로 교환 횟수가 가장 적어요(최대 n−1번).' },
+  ],
+};
+const SORT_TAG_CONCEPT = {
+  '선택 과정': SORT_CONCEPT.sel.card, '버블 과정': SORT_CONCEPT.bub.card, '삽입 과정': SORT_CONCEPT.ins.card,
+  '효율성': '선택 정렬은 처음 상태와 관계없이 비교 횟수가 같아요(상자 n개면 (n−1)+…+1번). 버블·삽입 정렬은 처음 상태에 따라 교환 횟수가 달라지고, 거의 정렬되어 있으면 삽입 정렬이 특히 빨라요.',
+  '상황 적용': SORT_CONCEPT[4].card + ' 거의 정렬된 데이터엔 삽입 정렬, 교환을 줄이고 싶으면 선택 정렬이 유리해요.',
+};
+
+/* ---------- 정렬 연산 기록 (시뮬레이션과 직접 해 보기가 같은 규칙) ---------- */
+function opsSelection(a) { a = a.slice(); const ops = [], n = a.length; for (let i = 0; i < n - 1; i++) { let m = i; for (let j = i + 1; j < n; j++) { ops.push(['c', m, j]); if (a[j] < a[m]) m = j; } if (m !== i) { ops.push(['s', i, m]);[a[i], a[m]] = [a[m], a[i]]; } } return ops; }
+function opsBubble(a) { a = a.slice(); const ops = [], n = a.length; for (let i = 0; i < n - 1; i++) for (let j = 0; j < n - 1 - i; j++) { ops.push(['c', j, j + 1]); if (a[j] > a[j + 1]) { ops.push(['s', j, j + 1]);[a[j], a[j + 1]] = [a[j + 1], a[j]]; } } return ops; }
+function opsInsertion(a) { a = a.slice(); const ops = [], n = a.length; for (let i = 1; i < n; i++) { let j = i; while (j > 0) { ops.push(['c', j - 1, j]); if (a[j - 1] > a[j]) { ops.push(['s', j - 1, j]);[a[j - 1], a[j]] = [a[j], a[j - 1]]; j--; } else break; } } return ops; }
+function opsQuick(a) {
+  a = a.slice(); const ops = [];
+  const sw = (i, j) => { if (i !== j) { ops.push(['s', i, j]);[a[i], a[j]] = [a[j], a[i]]; } };
+  const qs = (lo, hi) => { if (lo >= hi) return; const mid = Math.floor((lo + hi) / 2); sw(mid, hi); let p = lo; for (let j = lo; j < hi; j++) { ops.push(['c', j, hi]); if (a[j] < a[hi]) { sw(p, j); p++; } } sw(p, hi); qs(lo, p - 1); qs(p + 1, hi); };
+  qs(0, a.length - 1); return ops;
+}
+function opsMerge(a) {
+  a = a.slice(); const ops = [];
+  const ms = (lo, hi) => { if (hi - lo < 1) return; const mid = Math.floor((lo + hi) / 2); ms(lo, mid); ms(mid + 1, hi); const L = a.slice(lo, mid + 1), R = a.slice(mid + 1, hi + 1); let i = 0, j = 0, k = lo; while (i < L.length && j < R.length) { ops.push(['c', lo + i, mid + 1 + j]); if (L[i] <= R[j]) { ops.push(['w', k, L[i]]); a[k++] = L[i++]; } else { ops.push(['w', k, R[j]]); a[k++] = R[j++]; } } while (i < L.length) { ops.push(['w', k, L[i]]); a[k++] = L[i++]; } while (j < R.length) { ops.push(['w', k, R[j]]); a[k++] = R[j++]; } };
+  ms(0, a.length - 1); return ops;
+}
+const ALGOS = {
+  selection: { name: '선택 정렬', icon: '👆', who: '민아 선배', ops: opsSelection },
+  bubble: { name: '버블 정렬', icon: '🫧', who: '준호 선배', ops: opsBubble },
+  insertion: { name: '삽입 정렬', icon: '🃏', who: '하람 선배', ops: opsInsertion },
+  quick: { name: '퀵 정렬', icon: '⚡', ops: opsQuick },
+  merge: { name: '병합 정렬', icon: '🧩', ops: opsMerge },
+};
+const countOps = ops => ({ c: ops.filter(o => o[0] === 'c').length, s: ops.filter(o => o[0] !== 'c').length });
+
+/* ---------- 상자 타일 그리기 ---------- */
+function tileHtml(v, i, cls = '', extra = '') { return `<button class="tile ${cls}" data-i="${i}" ${extra} aria-label="${v}번 상자"><small>📦</small>${v}</button>`; }
+
+/* ---------- 활동: 내 방식대로 정리 (두 개 골라 자리 바꾸기) ---------- */
+function freeSort(root, arr, onFinish) {
+  const a = arr.slice(); let sel = -1, swaps = 0, done = false;
+  const el = h(`<div class="card stack"><p>상자 <b>두 개</b>를 차례로 누르면 자리가 바뀌어요. 왼쪽부터 <b>작은 번호 → 큰 번호</b> 순서로 정리하세요.</p>
+    <div class="stats"><span class="stat">교환 <b class="sw">0</b>번</span></div><div class="tiles"></div><div class="fb"></div></div>`);
+  const zt = zombieTrack(20); el.insertBefore(zt.el, el.children[1]); root.appendChild(el);
+  const draw = () => {
+    $('.tiles', el).innerHTML = a.map((v, i) => tileHtml(v, i, (i === sel ? 'sel ' : '') + (done ? 'fixed' : ''), done ? 'disabled' : '')).join('');
+    $$('.tile', el).forEach(t => t.onclick = () => {
+      if (done) return; const i = +t.dataset.i;
+      if (sel === -1) { sel = i; draw(); return; }
+      if (sel === i) { sel = -1; draw(); return; }
+      [a[sel], a[i]] = [a[i], a[sel]]; sel = -1; swaps++; zt.step(); $('.sw', el).textContent = swaps;
+      if (isSorted(a)) { done = true; $('.fb', el).innerHTML = `<div class="msg ok">✅ 정리 완료! 교환 <b>${swaps}번</b>으로 번호순 정리를 끝냈어요.</div>`; onFinish && onFinish(swaps); }
+      draw();
+    });
+  };
+  draw(); return el;
+}
+
+/* ---------- 활동: 선택·버블·삽입 규칙대로 따라 하기 ---------- */
+function sortFollow(root, { kind, arr, zmax = 30, showRule = false, onFinish }) {
+  const a = arr.slice(), n = a.length; let cmp = 0, swp = 0, hints = 0, done = false;
+  let i = kind === 'insertion' ? 1 : 0, j = 0, autoTimer = null, passesDone = 0;
+  const rules = {
+    selection: '👆 <b>선택 정렬</b>: 정리 안 된 상자 중 <b>가장 작은 번호</b>를 눌러요. 그 상자가 앞자리와 바뀌고, 앞자리가 확정돼요.',
+    bubble: '🫧 <b>버블 정렬</b>: 노란 테두리의 이웃한 두 상자를 비교해, <b>왼쪽이 더 크면 ‘바꾸기’</b>, 아니면 ‘그대로’를 눌러요.',
+    insertion: '🃏 <b>삽입 정렬</b>: 위로 꺼낸 상자가 들어갈 자리(⬇ 칸)를 <b>정리된 앞부분</b>에서 골라 눌러요.',
+  };
+  const el = h(`<div class="card stack"><div class="rule">${rules[kind]}</div>
+    <div class="stats"><span class="stat">비교 <b class="c">0</b>번</span><span class="stat">교환${kind === 'insertion' ? '(밀기)' : ''} <b class="s">0</b>번</span><span class="stat">힌트 <b class="hn">0</b>번</span></div>
+    <div class="tiles" aria-live="polite"></div>
+    <div class="row ctl"></div><div class="fb"></div></div>`);
+  const zt = zombieTrack(zmax); el.insertBefore(zt.el, el.children[1]); root.appendChild(el);
+  const tiles = $('.tiles', el), ctl = $('.ctl', el), fb = $('.fb', el);
+  const upd = () => { $('.c', el).textContent = cmp; $('.s', el).textContent = swp; $('.hn', el).textContent = hints; };
+  const say = (t, k = 'info') => fb.innerHTML = t ? `<div class="msg ${k}">${t}</div>` : '';
+  const finish = () => { done = true; if (autoTimer) clearInterval(autoTimer); draw(); upd(); say(`✅ ${ALGOS[kind].name} 완료! 비교 <b>${cmp}번</b>, 교환${kind === 'insertion' ? '(밀기)' : ''} <b>${swp}번</b>.`, 'ok'); onFinish && onFinish({ cmp, swp, hints }); };
+  const correctNow = () => {
+    if (kind === 'selection') { let m = i; for (let k = i + 1; k < n; k++) if (a[k] < a[m]) m = k; return m; }
+    if (kind === 'bubble') return a[j] > a[j + 1] ? 'swap' : 'keep';
+    let p = 0; for (let k = 0; k < i; k++) if (a[k] < a[i]) p++; return p;
+  };
+  const hintText = () => {
+    if (kind === 'selection') return `정리 안 된 상자(${i + 1}번째부터)를 모두 살펴보고, 그중 가장 작은 번호를 골라요.`;
+    if (kind === 'bubble') return `${a[j]}과(와) ${a[j + 1]}을(를) 비교해요. 왼쪽이 더 크면 바꾸고, 아니면 그대로 둬요.`;
+    return `꺼낸 상자 ${a[i]}보다 큰 상자는 뒤로 밀고, 더 작은 상자를 만나면 그 바로 뒤에 끼워요.`;
+  };
+  const act = (choice) => {
+    if (done) return;
+    const right = correctNow();
+    if (choice !== right) { hints++; upd(); say('💡 힌트: ' + hintText(), 'warn'); return false; }
+    if (kind === 'selection') {
+      const c = n - 1 - i; cmp += c; zt.step(c);
+      if (right !== i) { [a[i], a[right]] = [a[right], a[i]]; swp++; }
+      say(`남은 ${n - i}개 중 가장 작은 ${a[i]}을(를) ${i + 1}번째 자리로! (비교 ${c}번)`);
+      i++; if (i >= n - 1) return finish();
+    } else if (kind === 'bubble') {
+      cmp++; zt.step(1);
+      if (right === 'swap') { [a[j], a[j + 1]] = [a[j + 1], a[j]]; swp++; }
+      j++;
+      if (j > n - 2 - i) { i++; j = 0; passesDone++; say(`한 바퀴 끝! 가장 큰 상자 ${a[n - i]}이(가) 맨 뒤에 자리 잡았어요.`); if (i >= n - 1) return finish(); }
+      else say('');
+    } else {
+      const p = right; const key = a[i]; const c = (i - p) + (p > 0 ? 1 : 0); cmp += c; swp += i - p; zt.step(c);
+      a.splice(i, 1); a.splice(p, 0, key);
+      say(`${key}을(를) ${p + 1}번째 자리에 끼웠어요. (비교 ${c}번, 밀기 ${i - p}번)`);
+      i++; passesDone++; if (i >= n) return finish();
+    }
+    upd(); draw(); return true;
+  };
+  const draw = () => {
+    if (done) { tiles.innerHTML = a.map((v, k) => tileHtml(v, k, 'fixed', 'disabled')).join(''); ctl.innerHTML = ''; return; }
+    if (kind === 'selection') {
+      tiles.innerHTML = a.map((v, k) => tileHtml(v, k, k < i ? 'fixed' : '', k < i ? 'disabled' : '')).join('');
+      $$('.tile:not([disabled])', tiles).forEach(t => t.onclick = () => act(+t.dataset.i));
+    } else if (kind === 'bubble') {
+      tiles.innerHTML = a.map((v, k) => tileHtml(v, k, (k >= n - i ? 'fixed' : '') + (k === j || k === j + 1 ? ' pair' : ''), 'disabled')).join('');
+    } else {
+      let html = '';
+      for (let k = 0; k < n; k++) {
+        if (k <= i) html += `<button class="slot" data-p="${k}" aria-label="${k + 1}번째 자리에 끼우기">⬇</button>`;
+        if (k === i) html += tileHtml(a[k], k, 'key', 'disabled');
+        else html += tileHtml(a[k], k, k < i ? 'fixed' : '', 'disabled');
+      }
+      tiles.innerHTML = html;
+      $$('.slot', tiles).forEach(s => s.onclick = () => act(+s.dataset.p));
+    }
+    // 컨트롤
+    let c = '';
+    if (kind === 'bubble') c += `<button class="btn amber" data-a="swap">🔄 바꾸기</button><button class="btn" data-a="keep">➡️ 그대로</button>`;
+    c += `<button class="btn small ghost" data-a="hint">💡 힌트 보기</button>`;
+    if (kind !== 'selection' && passesDone >= 2 && !autoTimer) c += `<button class="btn small" data-a="auto">⏩ 남은 과정 자동 진행</button>`;
+    ctl.innerHTML = c;
+    const sb = $('[data-a=swap]', ctl); if (sb) sb.onclick = () => act('swap');
+    const kb = $('[data-a=keep]', ctl); if (kb) kb.onclick = () => act('keep');
+    $('[data-a=hint]', ctl).onclick = () => {
+      hints++; upd(); say('💡 힌트: ' + hintText(), 'warn');
+      const r = correctNow();
+      if (kind === 'selection') { const t = $(`.tile[data-i="${r}"]`, tiles); t && t.classList.add('hintme'); }
+      if (kind === 'insertion') { const s = $(`.slot[data-p="${r}"]`, tiles); s && s.classList.add('hintme'); }
+    };
+    const ab = $('[data-a=auto]', ctl);
+    if (ab) ab.onclick = () => { autoTimer = setInterval(() => { if (done) { clearInterval(autoTimer); return; } act(correctNow()); }, kind === 'bubble' ? 260 : 520); CLEANUP.push(() => clearInterval(autoTimer)); draw(); };
+  };
+  draw(); return el;
+}
+
+/* ---------- 활동: 정렬 경주 시뮬레이션 ---------- */
+function makeData(n, state) {
+  const sorted = Array.from({ length: n }, (_, i) => i + 1);
+  if (state === 'reversed') return sorted.reverse();
+  if (state === 'nearly') { const a = sorted.slice(); const k = Math.max(1, Math.round(n / 10)); for (let t = 0; t < k; t++) { const i = rand(0, n - 2);[a[i], a[i + 1]] = [a[i + 1], a[i]]; } return a; }
+  let a; do { a = shuffle(sorted); } while (n > 2 && isSorted(a)); return a;
+}
+const STATE_NAME = { random: '무작위', nearly: '거의 정렬됨', reversed: '역순' };
+function raceSim(root, ctx, { algos, predict = false, minN = 8, maxN = 100, defN = 30, onFinish }) {
+  const ss = ctx.ss; const history = [];
+  const el = h(`<div class="stack">
+    ${predict ? `<div class="card stack"><h3>🔮 예측: 누가 가장 빨리 끝낼까?</h3><p class="small muted">비교 1번, 교환 1번을 한 걸음으로 쳐서 세 방법이 동시에 출발해요. 상자 수와 처음 상태를 고른 뒤 예측하고 출발하세요.</p><div class="opts pred">${algos.map(k => `<button class="opt" data-k="${k}">${ALGOS[k].icon} ${ALGOS[k].name}</button>`).join('')}</div></div>` : ''}
+    <div class="card stack">
+      <div class="sim-ctrl">
+        <div class="field" style="flex:2"><label for="rsN">상자 수: <b class="nv">${defN}</b>개</label><input id="rsN" type="range" min="${minN}" max="${maxN}" value="${defN}"></div>
+        <div class="field"><label for="rsS">처음 상태</label><select id="rsS" style="width:100%;min-height:44px;border:1.5px solid var(--line);border-radius:10px;padding:6px"><option value="random">무작위</option><option value="nearly">거의 정렬됨</option><option value="reversed">역순</option></select></div>
+        <div class="field"><label for="rsSp">재생 속도</label><input id="rsSp" type="range" min="1" max="5" value="3"></div>
+      </div>
+      <div class="row"><button class="btn primary small" data-a="go">출발 ▶</button><button class="btn small" data-a="skip">결과 바로 보기 ⏭</button><button class="btn small" data-a="new">새 상자 🎲</button><span class="small muted rmsg"></span></div>
+      <div class="grid3">${algos.map(k => `<div class="panel" data-k="${k}"><h3><span>${ALGOS[k].icon} ${ALGOS[k].name}</span><span class="medal"></span></h3><div class="small"><span class="counter">비교 <span class="cc">0</span></span> <span class="counter" style="background:#8a3a2c">${k === 'merge' ? '이동' : '교환'} <span class="sc">0</span></span></div><canvas></canvas></div>`).join('')}</div>
+      <div class="legend"><span><i style="background:#3A69B0;border-color:#3A69B0"></i>비교 중</span><span><i style="background:#D85C48;border-color:#D85C48"></i>교환·이동</span><span><i style="background:#2E7D5B;border-color:#2E7D5B"></i>정렬 완료</span></div>
+    </div>
+    <div class="card stack rres hidden"></div></div>`);
+  root.appendChild(el);
+  const N = $('#rsN', el), ST = $('#rsS', el), SP = $('#rsSp', el), go = $('[data-a=go]', el);
+  let base = [], runs = {}, timer = null, pred = null, running = false;
+  if (predict) {
+    go.disabled = true; $('.rmsg', el).textContent = '먼저 예측을 골라 주세요.';
+    $$('.pred .opt', el).forEach(b => b.onclick = () => { if (running) return; pred = b.dataset.k; $$('.pred .opt', el).forEach(x => x.classList.toggle('sel', x === b)); go.disabled = false; $('.rmsg', el).textContent = ''; });
+  }
+  const prep = (newData = true) => {
+    stop(); const n = +N.value; $('.nv', el).textContent = n;
+    if (newData || base.length !== n) base = makeData(n, ST.value);
+    runs = {}; algos.forEach(k => { const ops = ALGOS[k].ops(base); runs[k] = { a: base.slice(), ops, p: 0, c: 0, s: 0, hi: [], done: false }; });
+    $$('.panel', el).forEach(p => { p.classList.remove('win'); $('.medal', p).textContent = ''; });
+    drawAll();
+  };
+  const drawBars = (k) => {
+    const r = runs[k]; const cv = $(`.panel[data-k="${k}"] canvas`, el); const { c, w, h: H } = fitCanvas(cv, 150);
+    const n = r.a.length; const bw = w / n; const mx = n;
+    for (let i = 0; i < n; i++) {
+      let col = '#E9B66A';
+      if (r.done) col = '#2E7D5B'; else if (r.hi[0] === 'c' && (i === r.hi[1] || i === r.hi[2])) col = '#3A69B0'; else if (r.hi[0] && r.hi[0] !== 'c' && (i === r.hi[1] || i === r.hi[2])) col = '#D85C48';
+      const bh = (r.a[i] / mx) * (H - 6); c.fillStyle = col; c.fillRect(i * bw + (bw > 4 ? 1 : 0), H - bh, Math.max(1, bw - (bw > 4 ? 2 : 0)), bh);
+    }
+    $(`.panel[data-k="${k}"] .cc`, el).textContent = r.c; $(`.panel[data-k="${k}"] .sc`, el).textContent = r.s;
+  };
+  const drawAll = () => algos.forEach(drawBars);
+  let finishOrder = [];
+  const stepAlgo = (k) => {
+    const r = runs[k]; if (r.done) return;
+    if (r.p >= r.ops.length) { r.done = true; r.hi = []; finishOrder.push(k); const p = $(`.panel[data-k="${k}"]`, el); const tot = x => runs[x].ops.length; const rank = algos.filter(x => tot(x) < tot(k)).length; $('.medal', p).textContent = ['🥇', '🥈', '🥉', '4등', '5등'][rank]; if (rank === 0) p.classList.add('win'); return; }
+    const o = r.ops[r.p++]; r.hi = o;
+    if (o[0] === 'c') r.c++; else if (o[0] === 's') { r.s++;[r.a[o[1]], r.a[o[2]]] = [r.a[o[2]], r.a[o[1]]]; } else { r.s++; r.a[o[1]] = o[2]; r.hi = ['w', o[1], o[1]]; }
+  };
+  const stop = () => { if (timer) clearInterval(timer); timer = null; running = false; };
+  CLEANUP.push(stop);
+  const run = (instant = false) => {
+    prep(false); finishOrder = []; running = true;
+    if (predict) $$('.pred .opt', el).forEach(b => b.disabled = true);
+    const maxLen = Math.max(...algos.map(k => runs[k].ops.length)) + 1;
+    const dur = [0, 24, 15, 9, 5, 2.5][+SP.value];
+    const tickMs = Math.max(16, (dur * 1000) / maxLen); const per = Math.max(1, Math.ceil(maxLen * tickMs / (dur * 1000)));
+    const tick = () => {
+      for (let t = 0; t < per; t++) algos.forEach(stepAlgo);
+      drawAll();
+      if (algos.every(k => runs[k].done)) { stop(); result(); }
+    };
+    if (instant) { while (!algos.every(k => runs[k].done)) algos.forEach(stepAlgo); drawAll(); stop(); result(); }
+    else timer = setInterval(tick, tickMs);
+  };
+  const result = () => {
+    if (predict) $$('.pred .opt', el).forEach(b => b.disabled = false);
+    const tot = k => runs[k].c + runs[k].s; const best = Math.min(...algos.map(tot));
+    const row = { n: base.length, st: STATE_NAME[ST.value], r: algos.map(k => ({ k, c: runs[k].c, s: runs[k].s })) }; history.unshift(row);
+    let predHtml = '';
+    if (predict && pred) {
+      const ok = tot(pred) === best; if (ss.logs.predict === undefined) ctx.log('predict', ok);
+      predHtml = `<div class="msg ${ok ? 'ok' : 'warn'}">내 예측: ${ALGOS[pred].name} → ${ok ? '정답이에요! 🎉' : `이번엔 ${algos.filter(k => tot(k) === best).map(k => ALGOS[k].name).join(', ')}이(가) 가장 빨랐어요.`}</div>`;
+    }
+    const rr = $('.rres', el); rr.classList.remove('hidden');
+    rr.innerHTML = `<h3>📋 실험 기록</h3>${predHtml}<div style="overflow-x:auto"><table class="table"><thead><tr><th>상자 수</th><th>처음 상태</th>${algos.map(k => `<th>${ALGOS[k].name}<br><span class="small">비교 / ${k === 'merge' ? '이동' : '교환'}</span></th>`).join('')}</tr></thead><tbody>
+      ${history.slice(0, 8).map((x, i) => { const b = Math.min(...x.r.map(y => y.c + y.s)); return `<tr class="${i === 0 ? 'hl' : ''}"><td>${x.n}</td><td>${x.st}</td>${x.r.map(y => `<td>${y.c + y.s === b ? '🥇 ' : ''}${y.c} / ${y.s}</td>`).join('')}</tr>`; }).join('')}</tbody></table></div>
+      <p class="small muted">💡 처음 상태를 <b>거의 정렬됨</b>, <b>역순</b>으로 바꿔 가며 다시 실험해 보세요. 누가 1등인지 달라지나요?</p>`;
+    onFinish && onFinish(history);
+  };
+  go.onclick = () => run(false);
+  $('[data-a=skip]', el).onclick = () => { if (predict && !pred) { toast('먼저 예측을 골라 주세요.'); return; } run(true); };
+  $('[data-a=new]', el).onclick = () => prep(true);
+  N.oninput = () => prep(true); ST.onchange = () => prep(true);
+  const ro = new ResizeObserver(() => drawAll()); ro.observe(el); CLEANUP.push(() => ro.disconnect());
+  prep(true);
+  return el;
+}
+
+/* ---------- 심화: 퀵·병합 정렬 맛보기 ---------- */
+function advancedSort(root, onDone) {
+  root.appendChild(h(`<div class="card stack"><h3>🚀 더 빠른 정렬 맛보기</h3><div class="grid2">
+    <div class="goal"><span class="n">⚡</span><span><b>퀵 정렬</b> — 기준 상자(피벗)를 하나 정해, 더 작은 상자는 왼쪽·큰 상자는 오른쪽으로 나눈 뒤 양쪽을 같은 방법으로 정리해요.</span></div>
+    <div class="goal"><span class="n">🧩</span><span><b>병합 정렬</b> — 상자를 반씩 계속 나눠 1개씩 만든 다음, 작은 것부터 비교하며 두 줄을 하나로 합쳐요.</span></div></div>
+    <p class="small muted">상자 수를 크게 해서 선택 정렬과 겨뤄 보세요. (이 실험은 심화 맛보기라 기록에 남지 않아요.)</p></div>`));
+  let fired = false;
+  raceSim(root, { ss: { logs: {} }, log() { }, save() { } }, { algos: ['selection', 'quick', 'merge'], minN: 8, maxN: 200, defN: 100, onFinish: () => {
+    if (fired) return; fired = true;
+    root.appendChild(h(`<div class="card stack"><h3>📐 빅오(O) 표기 맛보기</h3><p>상자 수 n이 늘 때 비교 횟수가 늘어나는 정도를 나타내요.</p>
+      <div style="overflow-x:auto"><table class="table"><thead><tr><th>상자 수 n</th><th>O(n²) · 선택·버블·삽입(최악)</th><th>O(n log n) · 퀵(평균)·병합</th></tr></thead><tbody>
+      <tr><td>8</td><td>약 64</td><td>약 24</td></tr><tr><td>100</td><td>약 10,000</td><td>약 660</td></tr><tr><td>1,000</td><td>약 1,000,000</td><td>약 10,000</td></tr></tbody></table></div>
+      <p class="small muted">log n은 “반으로 몇 번 나누면 1이 될까?”예요. 탐색 섹션의 이진 탐색과 같은 생각이 숨어 있어요.</p></div>`));
+    onDone && onDone();
+  } });
+}
+
+/* ---------- 단계 정의 ---------- */
+function baseArr(ss) {
+  if (!ss.baseArr) { let a; do { a = shuffle(sampleDistinct(8, 1, 40)); } while (opsInsertion(a).filter(o => o[0] === 's').length < 10); ss.baseArr = a; save(); }
+  return ss.baseArr;
+}
+SECTIONS.sort = {
+  id: 'sort', icon: '🗂️', title: '섹션 2 · 정렬', label: '정렬', std: '[12정03-02] 정렬 알고리즘', desc: '뒤죽박죽 창고를 정리하라! 선배 3명의 정리법 선택·버블·삽입 정렬 대결',
+  payload(ss, p) {
+    const L = ss.logs; const f = k => L[k] ? `${L[k].cmp}/${L[k].swp}` : '-';
+    p.act1 = L.freeSwaps ?? ''; p.act2 = `선택 ${f('selection')} · 버블 ${f('bubble')} · 삽입 ${f('insertion')}`;
+    p.act3 = ['selection', 'bubble', 'insertion'].reduce((s, k) => s + (L[k] ? L[k].hints : 0), 0);
+    ['t1', 'tsel', 'tbub', 'tins', 't3', 't4'].forEach((k, i) => p['r' + (i + 1)] = ss.reasons[k] || '');
+  },
+  steps: [
+    { name: '시작 · 정렬 임무', async render(root, ctx) {
+      await story(root, ['백신 덕분에 한숨 돌렸어요. 그런데 다른 창고들은 상자가 뒤죽박죽이에요.', '정리해 두면 다음엔 이진 탐색으로 금방 찾을 수 있겠죠? 이번 임무는 <b>창고 정리</b>예요.'], { skip: !!ctx.ss.done[0], cta: '학습 목표 보기 ▶' });
+      root.appendChild(h(`<div class="card stack"><h2>🎯 학습 목표</h2>${goalsBlock(SORT_GOALS, ATTITUDE)}</div>`));
+      baseArr(ctx.ss); ctx.markDone();
+    } },
+    { name: '도입 · 내 방식대로 정리', async render(root, ctx) {
+      await story(root, ['흩어진 보급품 상자 8개가 한 줄로 놓여 있어요.', '두 상자를 골라 자리를 바꾸는 방식으로, 번호가 작은 것부터 순서대로 정리해 주세요.'], { skip: !!ctx.ss.done[1] });
+      const cr = h('<div></div>');
+      freeSort(root, baseArr(ctx.ss), (sw) => { ctx.log('freeSwaps', sw); cr.innerHTML = ''; conceptReason(cr, { key: 't1', ...SORT_CONCEPT[1] }, ctx, () => ctx.markDone()); });
+      root.appendChild(cr);
+      if (ctx.ss.done[1]) conceptReason(cr, { key: 't1', ...SORT_CONCEPT[1] }, ctx, () => ctx.markDone());
+    } },
+    { name: '직접 해 보기 · 선배 3명의 방법', async render(root, ctx) {
+      const ss = ctx.ss;
+      await story(root, ['선배 대원 3명이 각자 다른 정리법을 알려 준대요.', '같은 상자 8개로 세 방법을 차례로 따라 해 봐요. 규칙에 맞지 않으면 힌트를 줄게요.'], { skip: !!ss.done[2] });
+      const parts = [['selection', 'tsel', 'sel', '🙋‍♀️', '가장 작은 상자부터 골라서 앞에 놓으면 돼!'], ['bubble', 'tbub', 'bub', '🙋‍♂️', '옆 상자끼리만 비교해서 큰 걸 뒤로 보내 봐!'], ['insertion', 'tins', 'ins', '🧑‍🔧', '카드 정리하듯 하나씩 꺼내서 제자리에 끼워!']];
+      const tabs = h(`<div class="tabs"></div>`); root.appendChild(tabs);
+      const area = h('<div class="stack"></div>'); root.appendChild(area);
+      if (ss.partIdx === undefined) ss.partIdx = 0;
+      const drawTabs = (cur) => tabs.innerHTML = parts.map(([k], i) => `<span class="t ${i < ss.partIdx || ss.done[2] ? 'done' : ''} ${i === cur ? 'now' : ''}">${i < ss.partIdx || ss.done[2] ? '✓ ' : ''}${ALGOS[k].icon} ${ALGOS[k].name}</span>`).join('');
+      const showPart = (pi) => {
+        cleanup(); area.innerHTML = ''; drawTabs(pi);
+        const [kind, rkey, ckey, av, line] = parts[pi];
+        story(area, [`${ALGOS[kind].who}: “${line}”`], { name: ALGOS[kind].who, avatar: av, skip: true });
+        const cr = h('<div class="stack"></div>');
+        const after = () => {
+          cr.innerHTML = '';
+          conceptReason(cr, { key: rkey, ...SORT_CONCEPT[ckey] }, ctx, () => {
+            if ($('.nextpart', cr)) return;
+            if (pi < 2) { const b = h(`<button class="btn primary nextpart">다음 선배에게 ▶ ${ALGOS[parts[pi + 1][0]].name}</button>`); b.onclick = () => { if (ss.partIdx < pi + 1) { ss.partIdx = pi + 1; save(); } showPart(pi + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }; cr.appendChild(b); }
+            else { if (ss.partIdx < 3) { ss.partIdx = 3; save(); } drawTabs(-1); cr.appendChild(h(`<div class="msg ok nextpart">세 선배의 방법을 모두 따라 했어요! 같은 상자인데 비교·교환 횟수가 어땠나요? 선택 ${ss.logs.selection.cmp}/${ss.logs.selection.swp}, 버블 ${ss.logs.bubble.cmp}/${ss.logs.bubble.swp}, 삽입 ${ss.logs.insertion.cmp}/${ss.logs.insertion.swp} (비교/교환)</div>`)); ctx.markDone(); }
+          });
+        };
+        sortFollow(area, { kind, arr: baseArr(ss), zmax: 30, onFinish: (r) => { ctx.log(kind, r); after(); } });
+        area.appendChild(cr);
+        if (ss.reasons[rkey] && ss.logs[kind]) after();
+        // 이미 지나간 선배는 탭으로 다시 볼 수 있음
+        $$('.t', tabs).forEach((t, i) => { if (i <= ss.partIdx && i < 3) { t.style.cursor = 'pointer'; t.onclick = () => showPart(i); } });
+      };
+      showPart(Math.min(ss.partIdx, 2));
+    } },
+    { name: '시뮬레이션 · 세 정렬 겨루기', async render(root, ctx) {
+      await story(root, ['누구 방법이 가장 빠를까요?', '상자 수와 처음 상태를 바꿔 가며 세 방법을 겨뤄 봐요.'], { skip: !!ctx.ss.done[3] });
+      const cr = h('<div></div>'); let shown = false;
+      raceSim(root, ctx, { algos: ['selection', 'bubble', 'insertion'], predict: true, onFinish: () => { if (shown) return; shown = true; conceptReason(cr, { key: 't3', ...SORT_CONCEPT[3] }, ctx, () => ctx.markDone()); } });
+      root.appendChild(cr);
+      if (ctx.ss.done[3]) { shown = true; conceptReason(cr, { key: 't3', ...SORT_CONCEPT[3] }, ctx, () => ctx.markDone()); }
+    } },
+    { name: '개념 정리 · 세 정렬 비교', async render(root, ctx) {
+      root.appendChild(h(`<div class="card stack"><h2>🧾 세 정렬 비교 카드</h2><p class="muted">빈칸을 골라 비교 카드를 완성하세요.</p><div class="ft"></div></div>`));
+      const cr = h('<div></div>');
+      fillTable($('.ft', root), {
+        head: ['', '👆 선택 정렬', '🫧 버블 정렬', '🃏 삽입 정렬'],
+        rows: [
+          ['원리', '남은 것 중 {{가장 작은 값|이웃한 값|가운데 값}}을 찾아 맨 앞과 바꾼다', '{{이웃한 두 값|맨 앞과 맨 뒤|가운데와 끝}}을 비교해 큰 값을 뒤로 보낸다', '하나씩 꺼내 {{정리된 앞부분|맨 뒤|가운데}}의 알맞은 자리에 끼운다'],
+          ['한 회전(바퀴) 뒤', '{{맨 앞|맨 뒤|가운데}} 자리가 확정된다', '가장 큰 값이 {{맨 뒤|맨 앞|가운데}}로 간다', '앞부분이 한 칸 더 정리된다'],
+          ['특징', '비교 횟수가 처음 상태와 {{관계없이 같다|관계있다}}', '교환이 많이 일어날 수 있다', '{{거의 정렬된|역순인|무작위인}} 데이터에서 특히 빠르다'],
+        ],
+      }, () => { cr.innerHTML = ''; conceptReason(cr, { key: 't4', ...SORT_CONCEPT[4] }, ctx, () => ctx.markDone()); });
+      root.appendChild(cr);
+      if (ctx.ss.done[4]) conceptReason(cr, { key: 't4', ...SORT_CONCEPT[4] }, ctx, () => ctx.markDone());
+    } },
+    { name: '형성평가', async render(root, ctx) {
+      root.appendChild(h(`<div class="row small muted">학습 목표 ① 수행 과정 · ② 비교·교환 횟수와 특징 에 맞춘 문항이에요.</div>`));
+      formativeBlock(root, ctx, { questions: SORT_Q, essay: SORT_ESSAY, onComplete: () => ctx.markDone() });
+    } },
+    { name: '보충 · 맞춤 복습 · 심화', async render(root, ctx) { branchStep(root, ctx, 'sort'); } },
+    { name: '결과 · 에필로그', async render(root, ctx) {
+      const L = ctx.ss.logs; const f = k => L[k] ? `비교 ${L[k].cmp} · 교환 ${L[k].swp}` : '-';
+      reportBlock(root, 'sort', [
+        ['도입: 자유 정리', L.freeSwaps !== undefined ? `교환 ${L.freeSwaps}번` : '-'],
+        ['선택 정렬', f('selection')], ['버블 정렬', f('bubble')], ['삽입 정렬', f('insertion') + ' (밀기)'],
+        ['힌트 사용', `${['selection', 'bubble', 'insertion'].reduce((s, k) => s + (L[k] ? L[k].hints : 0), 0)}번`],
+        ['시뮬레이션 예측', L.predict === undefined ? '-' : L.predict ? '정답' : '오답'],
+      ]);
+      await story(root, ['모든 창고가 정리됐어요! 이제 이진 탐색으로 백신을 바로 찾을 수 있어요.', '저 소리 들리나요? 구조 헬기가 도착했어요! 🚁', '생존 대원님, 정말 수고 많았어요. 생존 인증서를 받아 가세요!'], { cta: '확인 ✓' });
+      const b = h(`<div class="row"><button class="btn amber">🎖️ 생존 인증서 보기</button></div>`); b.firstElementChild.onclick = showCert; root.appendChild(b);
+      ctx.markDone();
+    } },
+  ],
+};
+
+/* ---------------- 시작 ---------------- */
+(function init() {
+  if (S.student && S.view === 'cert') showCert();
+  else if (S.student) goHub();
+  else goStart();
+})();
+
+</script>
+</body>
+</html>
